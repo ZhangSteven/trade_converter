@@ -7,6 +7,7 @@
 from utility import logger, get_datemode
 from xlrd import open_workbook
 from xlrd.xldate import xldate_as_datetime
+from tc import get_record_fields
 
 
 
@@ -28,8 +29,10 @@ def convert12307(files):
 	for f in files:
 		read_trade_file(f, output)
 
-	detect_duplicate_trade_no(output)
-	return to_standard_output(output)
+	records = convert_to_geneva_records(output)
+	detect_duplicate_key_value(records)
+
+	return records
 
 
 
@@ -125,13 +128,107 @@ def validate_trade_info(trade_info):
 
 
 
-def detect_duplicate_trade_no(output):
+def detect_duplicate_key_value(records):
 	pass
 
 
 
-def to_standard_output(output):
-	pass
+def convert_to_geneva_records(output):
+	records = []
+	record_fields = get_record_fields()
+	for trade_info in output:
+		records.append(create_record(trade_info, fields))
+
+
+
+def create_record(trade_info, record_fields):
+
+	known_fields = {
+		'RecordAction':'InsertUpdate',
+		'KeyValue.KeyName':'UserTranId1',
+		'LocationAccount':'JPM',
+		'Strategy':'Default',
+		'PriceDenomination':'CALC',
+		'NetInvestmentAmount','CALC',
+		'NetCounterAmount','CALC',
+		'TradeFX','',
+		'NotionalAmount','CALC',
+		'FundStructure','CALC',
+		'CounterFXDenomination','USD',
+		'AccruedInterest ','CALC',
+		'InvestmentAccruedInterest ','CALC'
+	}
+	
+	new_record = {}
+	for record_field in record_fields:
+
+		if record_field in known_fields:
+			new_record[record_field] = known_fields[record_field]
+
+		if record_field == 'RecordType':
+			if trade_info['B/S'] == 'B':
+				new_record[record_field] = 'Buy'
+			else:
+				new_record[record_field] = 'Sell'
+
+		elif record_field == 'KeyValue':
+			new_record[record_field] = create_record_key_value(trade_info)
+		elif record_field == 'UserTranId1':
+			new_record[record_field] = new_record['KeyValue']
+		elif record_field == 'Portfolio':
+			new_record[record_field] = trade_info['Acct#']
+		elif record_field == 'Investment':
+			new_record[record_field] = get_geneva_investment_id(trade_info)
+		elif record_field == 'Broker':
+			new_record[record_field] = trade_info['BrkCd']
+		elif record_field == 'EventDate':
+			new_record[record_field] = convert_datetime_to_string(trade_info['Trd Dt'])
+		elif record_field == 'SettleDate':
+			new_record[record_field] = convert_datetime_to_string(trade_info['Setl Dt'])
+		elif record_field == 'ActualSettleDate':
+			new_record[record_field] = new_record['SettleDate']
+		elif record_field == 'Quantity':
+			new_record[record_field] = trade_info['Units']
+		elif record_field == 'Price':
+			new_record[record_field] = trade_info['Unit Price']
+		elif record_field == 'CounterInvestment':
+			new_record[record_field] = trade_info['Cur']
+		elif record_field == 'CounterTDateFx':
+			new_record[record_field] = get_trade_day_FX(trade_info['Cur'], trade_info['Trd Dt'])
+		elif record_field == 'TradeExpenses':
+			new_record[record_field] = get_trade_expenses(trade_info)
+	# end of for loop
+
+	return new_record
+
+
+
+def create_record_key_value(trade_info):
+	"""
+	Geneva needs to have a unique key value associated with each record,
+	so that different records won't overwrite each other, but the same
+	record with different values will update itself.
+
+	That means if we run the function over the same trade input file
+	multiple times, a trade record must always be associated with the same
+	key value.
+
+	In this case the key value will be a string of the following format:
+
+	<portfolio_code>_<trade_date>_<Buy or Sell>_<hash value of (isin, net_settlement, broker)>
+	"""
+	trade_type = {'B':'Buy', 'S':'Sell'}
+	return trade_info['Acct#'] + '_' + convert_datetime_to_string(trade_info['Trd Dt']) + \
+			'_' + trade_type[trade_info['B/S']] + '_' + \
+			int_to_string(hash((trade_info['ISIN'], trade_info['Net Setl'], trade_info['BrkCd'])))
+
+
+
+def int_to_string(int_x):
+	if int_x < 0:
+		return 'n'+str(int_x)
+	else:
+		return str(int_x)
 
 
 

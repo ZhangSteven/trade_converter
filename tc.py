@@ -26,8 +26,28 @@ def get_converter(portfolio_id):
 
 
 
+def get_record_fields():
+	"""
+	Return the list of data fields used by Geneva 'TransactionRecord'
+	quick import file.
+	"""
+	fields = ['RecordType', 'RecordAction', 'KeyValue', 'KeyValue.KeyName', 
+				'UserTranId1', 'Portfolio', 'LocationAccount', 'Strategy', 
+				'Investment', 'Broker', 'EventDate', 'SettleDate', 
+				'ActualSettleDate', 'Quantity', 'Price', 'PriceDenomination',
+				'CounterInvestment', 'NetInvestmentAmount', 'NetCounterAmount', 
+				'TradeFX', 'NotionalAmount', 'FundStructure', 'CounterFXDenomination',
+				'CounterTDateFx', 'AccruedInterest', 'InvestmentAccruedInterest',
+				'TradeExpenses']
+
+
+
 def write_csv(output, portfolio_id):
 	logger.debug('write_csv(): for portfolio {0}'.format(portfolio_id))
+
+	row = get_record_fields()
+	row = row[:-1] + ['TradeExpenses.ExpenseNumber', 'TradeExpenses.ExpenseCode',
+				'TradeExpenses.ExpenseAmt']
 
 
 
