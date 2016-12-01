@@ -9,7 +9,9 @@ from trade_converter.utility import get_current_path
 from trade_converter.port_12307 import data_field_begins, read_data_fields, \
                                         read_line, validate_trade_info, \
                                         InvalidTradeInfo, create_record_key_value, \
-                                        convert_datetime_to_string, get_geneva_investment_id
+                                        convert_datetime_to_string, get_geneva_investment_id, \
+                                        get_trade_expenses, fix_duplicate_key_value, \
+                                        convert12307
 
 
 
@@ -146,6 +148,74 @@ class TestPort12307(unittest2.TestCase):
 
 
 
+    def test_get_trade_expenses(self):
+        """
+        1st trade in \\samples\\12307-20161111.xls
+        """
+        ws = self.get_worksheet('\\samples\\12307-20161111.xls')
+        fields = read_data_fields(ws, 6)
+        trade_info = read_line(ws, 7, fields)
+        trade_expenses = get_trade_expenses(trade_info)
+        self.verify_trade_expense(trade_expenses)
+
+
+
+    def test_fix_duplicate_key_value(self):
+        records = []
+        records.append({'KeyValue':'x', 'v':10})
+        records.append({'KeyValue':'x', 'v':20})
+        records.append({'KeyValue':'x', 'v':30})
+
+        try:
+            fix_duplicate_key_value(records)
+            self.assertEqual(records[0], {'KeyValue':'x', 'v':10})
+            self.assertEqual(records[1], {'KeyValue':'x_1', 'v':20})
+            self.assertEqual(records[2], {'KeyValue':'x_2', 'v':30})
+
+        except:
+            self.fail()
+
+
+    def test_fix_duplicate_key_value2(self):
+        records = []
+        records.append({'KeyValue':'x', 'v':10})
+        records.append({'KeyValue':'y', 'v':20})
+        records.append({'KeyValue':'x', 'v':30})
+        records.append({'KeyValue':'x_1', 'v':40})
+
+        try:
+            fix_duplicate_key_value(records)
+            self.assertEqual(records[0], {'KeyValue':'x', 'v':10})
+            self.assertEqual(records[1], {'KeyValue':'y', 'v':20})
+            self.assertEqual(records[2], {'KeyValue':'x_1', 'v':30})
+            self.assertEqual(records[3], {'KeyValue':'x_1_1', 'v':40})
+        except:
+            self.fail()
+
+
+
+    def test_convert12307(self):
+        file = get_current_path() + '\\samples\\12307-20161111.xls'
+        files = [file]
+        records = convert12307(files)
+        self.assertEqual(len(records), 5)
+        self.verify_record1(records[0])
+        self.verify_record2(records[4])
+
+
+
+    def test_convert12307_2(self):
+        file1 = get_current_path() + '\\samples\\12307-20161111.xls'
+        file2 = get_current_path() + '\\samples\\12307-20161116.xls'
+        files = [file1, file2]
+        records = convert12307(files)
+        self.assertEqual(len(records), 7)
+        self.verify_record1(records[0])
+        self.verify_record2(records[4])
+        self.verify_record3(records[6])
+
+
+
     def verify_trade1(self, trade_info):
         """
         1st trade in \\samples\\12307-20161111.xls
@@ -177,3 +247,71 @@ class TestPort12307(unittest2.TestCase):
             hash_string = hash_string[1:]
 
         return int(hash_string)
+
+
+
+    def verify_trade_expense(self, trade_expenses):
+        self.assertEqual(len(trade_expenses), 5)
+        
+        expense_code, expense_value = trade_expenses[0]
+        self.assertEqual(expense_code, 'CommissionTradeExpense')
+        self.assertAlmostEqual(expense_value, 52562.58)
+
+        expense_code, expense_value = trade_expenses[1]
+        self.assertEqual(expense_code, 'Stamp_Duty')
+        self.assertAlmostEqual(expense_value, 35042)
+
+        expense_code, expense_value = trade_expenses[2]
+        self.assertEqual(expense_code, 'Exchange_Fee')
+        self.assertAlmostEqual(expense_value, 0)
+
+        expense_code, expense_value = trade_expenses[3]
+        self.assertEqual(expense_code, 'Transaction_Levy')
+        self.assertAlmostEqual(expense_value, 0)
+
+        expense_code, expense_value = trade_expenses[4]
+        self.assertEqual(expense_code, 'Misc_Fee')
+        self.assertAlmostEqual(expense_value, 2698.22)
+
+
+
+    def verify_record1(self, record):
+        """
+        1st record from \\samples\\12307-20161111.xls
+        """
+        self.assertEqual(len(record), 27)
+        self.assertEqual(record['RecordType'], 'Sell')
+        self.assertEqual(record['Portfolio'], '12307')
+        self.assertEqual(record['EventDate'], '2016-11-11')
+        self.assertEqual(record['ActualSettleDate'], '2016-11-15')
+        self.assertEqual(record['Quantity'], 174000)
+        self.assertAlmostEqual(record['Price'], 201.3892)
+        self.verify_trade_expense(record['trade_expenses'])
+
+
+
+    def verify_record2(self, record):
+        """
+        5th record from \\samples\\12307-20161111.xls
+        """
+        self.assertEqual(len(record), 27)
+        self.assertEqual(record['RecordType'], 'Sell')
+        self.assertEqual(record['Investment'], '3606 HK')
+        self.assertEqual(record['EventDate'], '2016-11-11')
+        self.assertEqual(record['SettleDate'], '2016-11-15')
+        self.assertEqual(record['Quantity'], 500000)
+        self.assertAlmostEqual(record['Price'], 22.3865)
+
+
+
+    def verify_record3(self, record):
+        """
+        2nd record from \\samples\\12307-20161116.xls
+        """
+        self.assertEqual(len(record), 27)
+        self.assertEqual(record['RecordType'], 'Buy')
+        self.assertEqual(record['Investment'], '1880 HK')
+        self.assertEqual(record['EventDate'], '2016-11-16')
+        self.assertEqual(record['ActualSettleDate'], '2016-11-18')
+        self.assertEqual(record['Quantity'], 540000)
+        self.assertAlmostEqual(record['Price'], 4.4039)

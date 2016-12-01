@@ -122,6 +122,6 @@ def get_record_fields():
 				'CounterInvestment', 'NetInvestmentAmount', 'NetCounterAmount', 
 				'TradeFX', 'NotionalAmount', 'FundStructure', 'CounterFXDenomination',
 				'CounterTDateFx', 'AccruedInterest', 'InvestmentAccruedInterest',
-				'TradeExpenses']
+				'trade_expenses']
 
 	return fields

@@ -11,6 +11,9 @@ from xlrd.xldate import xldate_as_datetime
 
 
 
+class DuplicateKeys(Exception):
+	pass
+
 class InvalidTradeInfo(Exception):
 	pass
 
@@ -30,7 +33,7 @@ def convert12307(files):
 		read_trade_file(f, output)
 
 	records = convert_to_geneva_records(output)
-	detect_duplicate_key_value(records)
+	fix_duplicate_key_value(records)
 
 	return records
 
@@ -128,8 +131,31 @@ def validate_trade_info(trade_info):
 
 
 
-def detect_duplicate_key_value(records):
-	pass
+def fix_duplicate_key_value(records):
+	"""
+	Detect whether there are duplicate keyvalues for different records,
+	if there are, modify the keyvalues to make all keys unique.
+	"""
+	keys = []
+	for record in records:
+		i = 1
+		temp_key = record['KeyValue']
+		while temp_key in keys:
+			temp_key = record['KeyValue'] + '_' + str(i)
+			i = i + 1
+
+		record['KeyValue'] = temp_key
+		keys.append(record['KeyValue'])
+
+	# check again
+	keys = []
+	for record in records:
+		if record['KeyValue'] in keys:
+			logger.error('fix_duplicate_key_value(): duplicate keys still exists, key={0}, investment={1}'.
+							format(record['KeyValue'], record['Investment']))
+			raise DuplicateKeys()
+
+		keys.append(record['KeyValue'])
 
 
 
@@ -137,7 +163,9 @@ def convert_to_geneva_records(output):
 	records = []
 	record_fields = get_record_fields()
 	for trade_info in output:
-		records.append(create_record(trade_info, fields))
+		records.append(create_record(trade_info, record_fields))
+
+	return records
 
 
 
@@ -156,8 +184,8 @@ def create_record(trade_info, record_fields):
 		'FundStructure':'CALC',
 		'CounterFXDenomination':'USD',
 		'CounterTDateFx':'',
-		'AccruedInterest ':'CALC',
-		'InvestmentAccruedInterest ':'CALC'
+		'AccruedInterest':'CALC',
+		'InvestmentAccruedInterest':'CALC'
 	}
 	
 	trade_type = {'B':'Buy', 'S':'Sell'}
@@ -177,7 +205,7 @@ def create_record(trade_info, record_fields):
 		elif record_field == 'Portfolio':
 			new_record[record_field] = trade_info['Acct#']
 		elif record_field == 'Investment':
-			new_record[record_field] = get_geneva_investment_id(trade_info)
+			new_record[record_field] = get_geneva_investment_id(trade_info)[1]
 		elif record_field == 'Broker':
 			new_record[record_field] = trade_info['BrkCd']
 		elif record_field == 'EventDate':
@@ -192,7 +220,7 @@ def create_record(trade_info, record_fields):
 			new_record[record_field] = trade_info['Unit Price']
 		elif record_field == 'CounterInvestment':
 			new_record[record_field] = trade_info['Cur']
-		elif record_field == 'TradeExpenses':
+		elif record_field == 'trade_expenses':
 			new_record[record_field] = get_trade_expenses(trade_info)
 	# end of for loop
 
@@ -223,18 +251,18 @@ def get_geneva_investment_id(trade_info):
 		lookup_file = get_current_path() + '\\investmentLookup.xls'
 		initialize_investment_lookup(investment_lookup, lookup_file)
 
-	# print(investment_lookup)
+	# return (name, investment_id)
 	return investment_lookup[trade_info['ISIN']]
 
 
 
 def initialize_investment_lookup(investment_lookup, lookup_file):
 	"""
-	Initialize the lookup table from a file, mapping isin code to ticker.
+	Initialize the lookup table from a file, mapping isin code to investment_id.
 
 	To lookup,
 
-	ticker = investment_lookup(security_id_type, security_id)
+	name, investment_id = investment_lookup(security_id_type, security_id)
 	"""
 	logger.debug('initialize_investment_lookup(): on file {0}'.format(lookup_file))
 
@@ -247,10 +275,29 @@ def initialize_investment_lookup(investment_lookup, lookup_file):
 			break
 
 		name = ws.cell_value(row, 1).strip()
-		ticker = ws.cell_value(row, 2).strip()
+		investment_id = ws.cell_value(row, 2).strip()
 
-		investment_lookup[isin] = (name, ticker)
+		investment_lookup[isin] = (name, investment_id)
 		row = row + 1
+
+
+
+def get_trade_expenses(trade_info):
+	"""
+	Extract trade related expenses and group them into 5 categories:
+
+	commission, stamp duty, exchange fee, transaction levy, and
+	miscellaneous fees.
+
+	Return trade_expenses, as a list of (expense_code, expense_value) tuples.
+	"""
+	trade_expenses = [('CommissionTradeExpense', trade_info['Commission']), 
+						('Stamp_Duty', trade_info['Tax']), 
+						('Exchange_Fee', 0), 
+						('Transaction_Levy', trade_info['SEC Fee']), 
+						('Misc_Fee', trade_info['Fees'])]
+
+	return trade_expenses
 
 
 
