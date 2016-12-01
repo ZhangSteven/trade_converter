@@ -116,10 +116,10 @@ class TestPort12307(unittest2.TestCase):
         self.assertEqual(keys[0], '12307')
         self.assertEqual(keys[1], '2016-11-11')
         self.assertEqual(keys[2], 'Sell')
-        try:
-            print('hash value = {0}'.format(self.hash_string_to_int(keys[3])))
-        except:
-            self.fail('invalid hash string: {0}'.format(keys[3]))
+        # try:
+        #     print('hash value = {0}'.format(self.hash_string_to_int(keys[3])))
+        # except:
+        #     self.fail('invalid hash string: {0}'.format(keys[3]))
 
 
 

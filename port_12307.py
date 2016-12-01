@@ -316,17 +316,9 @@ def create_record_key_value(trade_info):
 	<portfolio_code>_<trade_date>_<Buy or Sell>_<hash value of (isin, net_settlement, broker)>
 	"""
 	trade_type = {'B':'Buy', 'S':'Sell'}
-	return trade_info['Acct#'] + '_' + convert_datetime_to_string(trade_info['Trd Dt']) + \
-			'_' + trade_type[trade_info['B/S']] + '_' + \
-			int_to_string(hash((trade_info['ISIN'], trade_info['Net Setl'], trade_info['BrkCd'])))
-
-
-
-def int_to_string(int_x):
-	if int_x < 0:
-		return 'n'+str(int_x)
-	else:
-		return str(int_x)
+	return trade_info['Acct#'] + '_' + convert_datetime_to_string(trade_info['Trd Dt']) \
+			+ '_' + trade_type[trade_info['B/S']] + '_' + trade_info['ISIN'] \
+			+ '_' + str(int(trade_info['Net Setl']*10000)) + '_' + trade_info['BrkCd']
 
 
 
