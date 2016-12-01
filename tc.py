@@ -4,8 +4,8 @@
 # format required by Advent Geneva system for quick import.
 # 
 
-from utility import logger, get_current_path
-from port_12307 import convert12307
+from trade_converter.utility import logger, get_current_path, get_record_fields
+from trade_converter.port_12307 import convert12307
 
 
 
@@ -26,21 +26,8 @@ def get_converter(portfolio_id):
 
 
 
-def get_record_fields():
-	"""
-	Return the list of data fields used by Geneva 'TransactionRecord'
-	quick import file.
-	"""
-	fields = ['RecordType', 'RecordAction', 'KeyValue', 'KeyValue.KeyName', 
-				'UserTranId1', 'Portfolio', 'LocationAccount', 'Strategy', 
-				'Investment', 'Broker', 'EventDate', 'SettleDate', 
-				'ActualSettleDate', 'Quantity', 'Price', 'PriceDenomination',
-				'CounterInvestment', 'NetInvestmentAmount', 'NetCounterAmount', 
-				'TradeFX', 'NotionalAmount', 'FundStructure', 'CounterFXDenomination',
-				'CounterTDateFx', 'AccruedInterest', 'InvestmentAccruedInterest',
-				'TradeExpenses']
-
-
+def test_func():
+	pass	
 
 def write_csv(output, portfolio_id):
 	logger.debug('write_csv(): for portfolio {0}'.format(portfolio_id))

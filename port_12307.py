@@ -4,10 +4,10 @@
 # format required by Advent Geneva system for quick import.
 # 
 
-from utility import logger, get_datemode
+from trade_converter.utility import logger, get_datemode, get_record_fields, \
+									get_current_path
 from xlrd import open_workbook
 from xlrd.xldate import xldate_as_datetime
-from tc import get_record_fields
 
 
 
@@ -149,16 +149,19 @@ def create_record(trade_info, record_fields):
 		'LocationAccount':'JPM',
 		'Strategy':'Default',
 		'PriceDenomination':'CALC',
-		'NetInvestmentAmount','CALC',
-		'NetCounterAmount','CALC',
-		'TradeFX','',
-		'NotionalAmount','CALC',
-		'FundStructure','CALC',
-		'CounterFXDenomination','USD',
-		'AccruedInterest ','CALC',
-		'InvestmentAccruedInterest ','CALC'
+		'NetInvestmentAmount':'CALC',
+		'NetCounterAmount':'CALC',
+		'TradeFX':'',
+		'NotionalAmount':'CALC',
+		'FundStructure':'CALC',
+		'CounterFXDenomination':'USD',
+		'CounterTDateFx':'',
+		'AccruedInterest ':'CALC',
+		'InvestmentAccruedInterest ':'CALC'
 	}
 	
+	trade_type = {'B':'Buy', 'S':'Sell'}
+
 	new_record = {}
 	for record_field in record_fields:
 
@@ -166,11 +169,7 @@ def create_record(trade_info, record_fields):
 			new_record[record_field] = known_fields[record_field]
 
 		if record_field == 'RecordType':
-			if trade_info['B/S'] == 'B':
-				new_record[record_field] = 'Buy'
-			else:
-				new_record[record_field] = 'Sell'
-
+			new_record[record_field] = trade_type[trade_info['B/S']]
 		elif record_field == 'KeyValue':
 			new_record[record_field] = create_record_key_value(trade_info)
 		elif record_field == 'UserTranId1':
@@ -193,13 +192,65 @@ def create_record(trade_info, record_fields):
 			new_record[record_field] = trade_info['Unit Price']
 		elif record_field == 'CounterInvestment':
 			new_record[record_field] = trade_info['Cur']
-		elif record_field == 'CounterTDateFx':
-			new_record[record_field] = get_trade_day_FX(trade_info['Cur'], trade_info['Trd Dt'])
 		elif record_field == 'TradeExpenses':
 			new_record[record_field] = get_trade_expenses(trade_info)
 	# end of for loop
 
 	return new_record
+
+
+
+def get_geneva_investment_id(trade_info):
+	"""
+	As portfolio 12307 is an equity portfolio, the Geneva investment id
+	is the Bloomberg ticker without the yellow key, e.g., '11 HK'.
+
+	So assumptions for this function are:
+
+	1. All investment is equity.
+	2. In the holdings of the portfolio, the ISIN number to ticker mapping
+	is unique.
+	"""
+
+	# use a function attribute to store the lookup table, as there is only
+	# one instance of a function, all invocations access the same variable.
+	# see http://stackoverflow.com/questions/279561/what-is-the-python-equivalent-of-static-variables-inside-a-function
+	if 'i_lookup' not in get_geneva_investment_id.__dict__:
+		get_geneva_investment_id.i_lookup = {}
+
+	investment_lookup = get_geneva_investment_id.i_lookup
+	if len(investment_lookup) == 0:
+		lookup_file = get_current_path() + '\\investmentLookup.xls'
+		initialize_investment_lookup(investment_lookup, lookup_file)
+
+	# print(investment_lookup)
+	return investment_lookup[trade_info['ISIN']]
+
+
+
+def initialize_investment_lookup(investment_lookup, lookup_file):
+	"""
+	Initialize the lookup table from a file, mapping isin code to ticker.
+
+	To lookup,
+
+	ticker = investment_lookup(security_id_type, security_id)
+	"""
+	logger.debug('initialize_investment_lookup(): on file {0}'.format(lookup_file))
+
+	wb = open_workbook(filename=lookup_file)
+	ws = wb.sheet_by_name('Sheet1')
+	row = 1
+	while (row < ws.nrows):
+		isin = ws.cell_value(row, 0)
+		if isin.strip() == '':
+			break
+
+		name = ws.cell_value(row, 1).strip()
+		ticker = ws.cell_value(row, 2).strip()
+
+		investment_lookup[isin] = (name, ticker)
+		row = row + 1
 
 
 
@@ -240,6 +291,14 @@ def data_field_begins(ws, row):
 		return True
 	else:
 		return False
+
+
+
+def convert_datetime_to_string(dt):
+	"""
+	convert a datetime object to string in the 'yyyy-mm-dd' format.
+	"""
+	return '{0}-{1}-{2}'.format(dt.year, dt.month, dt.day)
 
 
 

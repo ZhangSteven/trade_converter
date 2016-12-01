@@ -107,3 +107,21 @@ def get_datemode():
 		raise
 
 	return datemode
+
+
+
+def get_record_fields():
+	"""
+	Return the list of data fields used by Geneva 'TransactionRecord'
+	quick import file.
+	"""
+	fields = ['RecordType', 'RecordAction', 'KeyValue', 'KeyValue.KeyName', 
+				'UserTranId1', 'Portfolio', 'LocationAccount', 'Strategy', 
+				'Investment', 'Broker', 'EventDate', 'SettleDate', 
+				'ActualSettleDate', 'Quantity', 'Price', 'PriceDenomination',
+				'CounterInvestment', 'NetInvestmentAmount', 'NetCounterAmount', 
+				'TradeFX', 'NotionalAmount', 'FundStructure', 'CounterFXDenomination',
+				'CounterTDateFx', 'AccruedInterest', 'InvestmentAccruedInterest',
+				'TradeExpenses']
+
+	return fields

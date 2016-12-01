@@ -8,7 +8,8 @@ from xlrd import open_workbook
 from trade_converter.utility import get_current_path
 from trade_converter.port_12307 import data_field_begins, read_data_fields, \
                                         read_line, validate_trade_info, \
-                                        InvalidTradeInfo
+                                        InvalidTradeInfo, create_record_key_value, \
+                                        convert_datetime_to_string, get_geneva_investment_id
 
 
 
@@ -100,6 +101,51 @@ class TestPort12307(unittest2.TestCase):
 
 
 
+    def test_create_record_key_value(self):
+        """
+        1st trade in \\samples\\12307-20161111.xls
+        """
+        ws = self.get_worksheet('\\samples\\12307-20161111.xls')
+        fields = read_data_fields(ws, 6)
+        trade_info = read_line(ws, 7, fields)
+
+        key_value = create_record_key_value(trade_info)
+        keys = key_value.split('_')
+        self.assertEqual(keys[0], '12307')
+        self.assertEqual(keys[1], '2016-11-11')
+        self.assertEqual(keys[2], 'Sell')
+        try:
+            print('hash value = {0}'.format(self.hash_string_to_int(keys[3])))
+        except:
+            self.fail('invalid hash string: {0}'.format(keys[3]))
+
+
+
+    def test_get_geneva_investment_id(self):
+        lookup_file = get_current_path() + '\\samples\\sample_investmentLookup.xls'
+        # investment_lookup = get_geneva_investment_id.i_lookup
+        # self.assertEqual(investment_lookup, 28)
+        trade_info = {}
+        trade_info['ISIN'] = 'US01609W1027' # fist
+        name, ticker = get_geneva_investment_id(trade_info)
+        self.assertEqual(ticker, 'BABA US')
+
+        trade_info['ISIN'] = 'KYG981491007' # last
+        name, ticker = get_geneva_investment_id(trade_info)
+        self.assertEqual(ticker, '1128 HK')
+
+        trade_info['ISIN'] = 'HK0941009539'
+        name, ticker = get_geneva_investment_id(trade_info)
+        self.assertEqual(ticker, '941 HK')
+        self.assertEqual(name, 'CHINA MOBILE LTD')
+
+        trade_info['ISIN'] = 'KYG5636C1078'
+        name, ticker = get_geneva_investment_id(trade_info)
+        self.assertEqual(ticker, '3339 HK')
+        self.assertEqual(name, 'LONKING HOLDINGS LTD')
+
+
+
     def verify_trade1(self, trade_info):
         """
         1st trade in \\samples\\12307-20161111.xls
@@ -123,3 +169,11 @@ class TestPort12307(unittest2.TestCase):
         self.assertAlmostEqual(trade_info['Unit Price'], 22.3865)
         self.assertAlmostEqual(trade_info['Fees'], 861.88)
         self.assertEqual(trade_info['Trade#'], '5140')
+
+
+
+    def hash_string_to_int(self, hash_string):
+        if hash_string[0] == 'n':
+            hash_string = hash_string[1:]
+
+        return int(hash_string)
