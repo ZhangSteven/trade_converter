@@ -9,6 +9,11 @@ import os
 
 
 
+class InvalidDatamode(Exception):
+	pass
+
+
+
 def get_current_path():
 	"""
 	Get the absolute path to the directory where this module is in.
@@ -98,15 +103,28 @@ def get_datemode():
 	"""
 	Read datemode from the config object and return it (in integer)
 	"""
-	global config
+	global config, logger
 	d = config['excel']['datemode']
 	try:
 		datemode = int(d)
 	except:
 		logger.error('get_datemode(): invalid datemode value: {0}'.format(d))
-		raise
+		raise InvalidDatamode()
 
 	return datemode
+
+
+
+def get_input_directory():
+	"""
+	Read directory from the config object and return it.
+	"""
+	global config
+	directory = config['input']['directory']
+	if directory.strip() == '':
+		directory = get_current_path()
+
+	return directory
 
 
 

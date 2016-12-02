@@ -20,6 +20,17 @@ To run unit test, use
 
 
 +++++++++++
+Todo
++++++++++++
+
+1. Consider separate logging and config function into two modules, each project can have its own config module, while all projects can share the same logging module? -- test: get two test modules running at the same time, but
+log to different files.
+
+2. Put a "directory" into config file, as the directory for input trade files or folder. -- we don't want the input/output to pollute the project directory.
+
+3. Add error testing code, make sure the errors are generated as expected.
+
++++++++++++
 ver 0.1
 +++++++++++
 

@@ -5,7 +5,8 @@
 # 
 
 import csv, argparse, glob, os, sys
-from trade_converter.utility import logger, get_current_path, get_record_fields
+from trade_converter.utility import logger, get_current_path, get_record_fields, \
+									get_input_directory
 from trade_converter.port_12307 import convert12307
 
 
@@ -68,16 +69,20 @@ def write_csv(file, records):
 
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description='Read portfolio trades and create a Geneva trade upload file.')
+	parser = argparse.ArgumentParser(description='Read portfolio trades and create a Geneva trade upload file. Check the config file for path to trade files.')
 	parser.add_argument('portfolio_id')
-	parser.add_argument('--folder', help='folder in current directory containing multiple trade files', required=False)
+	parser.add_argument('--folder', help='folder containing multiple trade files', required=False)
 	parser.add_argument('--file', help='input trade file', required=False)
 	args = parser.parse_args()
 
 	if not args.file is None:
-		files = [get_current_path() + '\\' + args.file]
+		file = get_input_directory() + '\\' + args.file
+		if not os.path.exists(file):
+			print('{0} does not exist'.format(file))
+			sys.exit(1)
+		files = [file]
 	elif not args.folder is None:
-		folder = get_current_path() + '\\' + args.folder
+		folder = get_input_directory() + '\\' + args.folder
 		if not os.path.exists(folder) or not os.path.isdir(folder):
 			print('{0} is not a valid directory'.format(folder))
 			sys.exit(1)
@@ -90,9 +95,5 @@ if __name__ == '__main__':
 	do_convert = get_converter(args.portfolio_id)
 	records = do_convert(files)
 
-	output_file = get_current_path() + '\\trade_upload.csv'
+	output_file = get_input_directory() + '\\trade_upload.csv'
 	write_csv(output_file, records)
-
-	# directory = get_current_path() + '\\samples'
-	# files = get_all_trade_files(directory)
-	# print(len(files))
