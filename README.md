@@ -28,7 +28,23 @@ log to different files.
 
 2. Put a "directory" into config file, as the directory for input trade files or folder. -- we don't want the input/output to pollute the project directory.
 
-3. Add error testing code, make sure the errors are generated as expected.
+1. Add error testing code, make sure the errors are generated as expected.
+
+
+
++++++++++++
+ver 0.11
++++++++++++
+
+1. Add two entries in the config file:
+
+	> base directory for input trade files or folder. So those trade files can be in a different directory.
+
+	> base directory for the log file. So during production deployment, the log file can be put in a different directory for easy checking.
+
+2. logging function is handled by another package config_logging.
+
+
 
 +++++++++++
 ver 0.1
