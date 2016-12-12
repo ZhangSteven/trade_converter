@@ -22,13 +22,16 @@ To run unit test, use
 +++++++++++
 Todo
 +++++++++++
-
-1. Consider separate logging and config function into two modules, each project can have its own config module, while all projects can share the same logging module? -- test: get two test modules running at the same time, but
-log to different files.
-
-2. Put a "directory" into config file, as the directory for input trade files or folder. -- we don't want the input/output to pollute the project directory.
-
 1. Add error testing code, make sure the errors are generated as expected.
+
+2. Consider move the isin code to ticker lookup to investment_lookup project.
+
+
+
++++++++++++
+ver 0.1101
++++++++++++
+1. No change in program code, just add one more entry "762 HK" to investment lookup file.
 
 
 
