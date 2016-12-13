@@ -5,7 +5,8 @@
 # 
 
 from trade_converter.utility import logger, get_datemode, get_record_fields, \
-									get_current_path
+									get_current_path, convert_datetime_to_string, \
+									is_blank_line, is_empty_cell
 from xlrd import open_workbook
 from xlrd.xldate import xldate_as_datetime
 
@@ -331,28 +332,3 @@ def data_field_begins(ws, row):
 	else:
 		return False
 
-
-
-def convert_datetime_to_string(dt):
-	"""
-	convert a datetime object to string in the 'yyyy-mm-dd' format.
-	"""
-	return '{0}-{1}-{2}'.format(dt.year, dt.month, dt.day)
-
-
-
-def is_blank_line(ws, row):
-	for i in range(5):
-		if not is_empty_cell(ws, row, i):
-			return False
-
-	return True
-
-
-
-def is_empty_cell(ws, row, column):
-	cell_value = ws.cell_value(row, column)
-	if not isinstance(cell_value, str) or cell_value.strip() != '':
-		return False
-	else:
-		return True
