@@ -29,6 +29,15 @@ Todo
 
 
 +++++++++++
+ver 0.12
++++++++++++
+1. Add a broker mapping function to map the old broker code to the new ones, so that since 2016-12-13, trades are loaded into Geneva with the new broker code.
+
+2. Some development code for port_overseas_bond.py.
+
+
+
++++++++++++
 ver 0.1101
 +++++++++++
 1. No change in program code, just add one more entry "762 HK" to investment lookup file.

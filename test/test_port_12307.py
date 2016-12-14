@@ -284,6 +284,7 @@ class TestPort12307(unittest2.TestCase):
         self.assertEqual(record['Portfolio'], '12307')
         self.assertEqual(record['EventDate'], '2016-11-11')
         self.assertEqual(record['ActualSettleDate'], '2016-11-15')
+        self.assertEqual(record['Broker'], 'UBSW-EQ')
         self.assertEqual(record['Quantity'], 174000)
         self.assertAlmostEqual(record['Price'], 201.3892)
         self.verify_trade_expense(record['trade_expenses'])
@@ -299,6 +300,7 @@ class TestPort12307(unittest2.TestCase):
         self.assertEqual(record['Investment'], '3606 HK')
         self.assertEqual(record['EventDate'], '2016-11-11')
         self.assertEqual(record['SettleDate'], '2016-11-15')
+        self.assertEqual(record['Broker'], 'CICF-EQ')
         self.assertEqual(record['Quantity'], 500000)
         self.assertAlmostEqual(record['Price'], 22.3865)
 
@@ -313,5 +315,6 @@ class TestPort12307(unittest2.TestCase):
         self.assertEqual(record['Investment'], '1880 HK')
         self.assertEqual(record['EventDate'], '2016-11-16')
         self.assertEqual(record['ActualSettleDate'], '2016-11-18')
+        self.assertEqual(record['Broker'], 'MS-EQ')
         self.assertEqual(record['Quantity'], 540000)
         self.assertAlmostEqual(record['Price'], 4.4039)

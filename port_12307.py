@@ -12,6 +12,9 @@ from xlrd.xldate import xldate_as_datetime
 
 
 
+class UnknownBrokerCode(Exception):
+	pass
+
 class DuplicateKeys(Exception):
 	pass
 
@@ -170,6 +173,44 @@ def convert_to_geneva_records(output):
 
 
 
+def map_broker_code(broker_code):
+	"""
+	Effective 2016-12-13, start using the new broker code.
+	"""
+	a_map = {
+		'BOCI':'BOCI-EQ',
+		'CCBS':'CCB2-EQ',
+		'CICC':'CICF-EQ',
+		'CITI':'CG-EQ',
+		'CLSA':'CLSA-EQ',
+		'CMSHK':'CMS6-EQ',
+		'DBAB':'DBG-EQ',
+		'FBCO':'CSFB-EQ',
+		'GSCO':'GS-EQ',
+		
+		# note that for 12307 and other ListCo equity portfolios, since
+		# they only do HK equity, so Guo Tai Jun An securities is mapped
+		# to its HK arm
+		'GUO':'GTHK-EQ',
+
+
+		'HSCL':'HTIL-EQ',
+		'JEFF':'JEF3-EQ',
+		'JPM':'JP-EQ',
+		'MLCO':'MLAP-EQ',
+		'MSCO':'MS-EQ',
+		'NOMURA':'INSA-EQ',
+		'UBS':'UBSW-EQ'
+	}
+
+	try:
+		return a_map[broker_code]
+	except KeyError:
+		logger.error('map_broker_code(): broker code {0} does not have a match.'.format(broker_code))
+		raise UnknownBrokerCode()
+
+
+
 def create_record(trade_info, record_fields):
 
 	known_fields = {
@@ -208,7 +249,7 @@ def create_record(trade_info, record_fields):
 		elif record_field == 'Investment':
 			new_record[record_field] = get_geneva_investment_id(trade_info)[1]
 		elif record_field == 'Broker':
-			new_record[record_field] = trade_info['BrkCd']
+			new_record[record_field] = map_broker_code(trade_info['BrkCd'])
 		elif record_field == 'EventDate':
 			new_record[record_field] = convert_datetime_to_string(trade_info['Trd Dt'])
 		elif record_field == 'SettleDate':
