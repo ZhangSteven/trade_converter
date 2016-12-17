@@ -22,6 +22,9 @@ from datetime import datetime
 class InvalidFieldValue(Exception):
 	pass
 
+class InvalidTradeInfo(Exception):
+	pass
+
 
 
 def convert_ft(files):
@@ -53,11 +56,15 @@ def read_transaction_file(trade_file, output):
 	fields = read_data_fields(ws, 0)
 	
 	row = 1
+	starting_pos = len(output)
 	while not is_blank_line(ws, row):
 		trade_info = read_line(ws, row, fields)
 		validate_trade_info(trade_info)
 		output.append(trade_info)
 		row = row + 1
+
+	total_info = read_total(ws, row)
+	validate_total(total_info, fields, output, starting_pos)
 
 
 
@@ -150,32 +157,42 @@ def convert_float_to_datetime(value):
 
 
 
+def read_total(ws, row):
+	pass
+
+
+
+def validate_total(total_info, fields, output, starting_pos):
+	pass
+
+
+
 def validate_trade_info(trade_info):
-	logger.debug('validate_trade_info(): trade date={0}, isin={1}'.
-					format(trade_info['Trd Dt'], trade_info['ISIN']))
-	
-	if trade_info['Acct#'] != '12307':
-		logger.error('validate_trade_info(): invalid portfolio code: {0}'.format(trade_info['Acct#']))
-		raise InvalidTradeInfo
+	logger.debug('validate_trade_info(): trade date={0}, isin={1}, gross amount={2}'.
+					format(trade_info['TRDDATE'], trade_info['SCTYID_ISIN'], trade_info['GROSSBAS']))
 
-	if trade_info['B/S'] == 'B':
-		settled_amount = trade_info['Units']*trade_info['Unit Price'] + \
-							(trade_info['Commission'] + trade_info['Tax'] + \
-							trade_info['Fees'] + trade_info['SEC Fee'])
+	if trade_info['STLDATE'] < trade_info['TRDDATE'] or \
+		trade_info['ENTRDATE'] < trade_info['TRDDATE']:
+		logger.error('validate_trade_info(): invalid dates, trade date={0}, settle day={1}, enterday={2}'.
+						format(trade_info['TRDDATE'], trade_info['STLDATE'], trade_info['ENTRDATE']))
+		raise InvalidTradeInfo()
 
-	elif trade_info['B/S'] == 'S':
-		settled_amount = trade_info['Units']*trade_info['Unit Price'] - \
-							(trade_info['Commission'] + trade_info['Tax'] + \
-							trade_info['Fees'] + trade_info['SEC Fee'])
+	diff = abs(trade_info['GROSSBAS'] * trade_info['FXRATE'] - trade_info['GROSSLCL'])
+	if diff > 0.001:
+		logger.error('validate_trade_info(): FX validation failed')
+		raise InvalidTradeInfo()
 
-	else:
-		logger.error('validate_trade_info(): invalid trade instruction: {0}'.format(trade_info['B/S']))
-		raise InvalidTradeInfo
+	if trade_info['TRANTYP'] in ['Purch', 'Sale']:
+		if not isinstance(trade_info['QTY'], float) or not isinstance(trade_info['TRADEPRC'], float):
+			logger.error('validate_trade_info(): quantity={0}, price={1}, is not of type float'.
+							format(trade_info['QTY'], trade_info['TRADEPRC']))
+			raise InvalidTradeInfo()
 
-	if abs(settled_amount - trade_info['Net Setl']) > 0.0001:
-		logger.error('validate_trade_info(): net settlement amount does not match, calculated={0}, read={1}'.
-						format(settled_amount, trade_info['Net Setl']))
-		raise InvalidTradeInfo
+		diff2 = abs(trade_info['PRINB'] * trade_info['FXRATE'] - trade_info['QTY'] * trade_info['TRADEPRC'])
+		diff3 = abs(trade_info['PRINB'] * trade_info['FXRATE'] - trade_info['QTY']/100 * trade_info['TRADEPRC'])
+		if (diff2 > 0.001 and diff3 > 0.001):
+			logger.error('validate_trade_info(): price validation failed')
+			raise InvalidTradeInfo()
 
 
 

@@ -6,7 +6,8 @@ import unittest2
 from datetime import datetime
 from xlrd import open_workbook
 from trade_converter.utility import get_current_path
-from trade_converter.port_ft import read_data_fields, read_line
+from trade_converter.port_ft import read_data_fields, read_line, \
+                                    validate_trade_info
 
 
 
@@ -44,12 +45,15 @@ class TestPortFT(unittest2.TestCase):
         fields = read_data_fields(ws, 0)
         trade_info = read_line(ws, 1, fields)
         self.verify_trade_info1(trade_info)
+        validate_trade_info(trade_info)
 
         trade_info = read_line(ws, 3, fields)
         self.verify_trade_info2(trade_info)
+        validate_trade_info(trade_info)
 
         trade_info = read_line(ws, 17, fields)
         self.verify_trade_info3(trade_info)
+        validate_trade_info(trade_info)
 
 
 
