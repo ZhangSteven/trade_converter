@@ -48,6 +48,13 @@ def convert_ft(files):
 
 
 def read_transaction_file(trade_file, output):
+	"""
+	Note: the transaction file from FT contains all kinds of transactions,
+	including purchase/sale, cash movements, position adjustments, paydown,
+	bond exchange offer, called by issuer, FX transactions, etc.
+
+	For simplicity, we filtered out purchase/sale first.
+	"""
 	logger.debug('read_transaction_file(): {0}'.format(trade_file))
 
 	wb = open_workbook(filename=trade_file)
@@ -56,15 +63,16 @@ def read_transaction_file(trade_file, output):
 	fields = read_data_fields(ws, 0)
 	
 	row = 1
-	starting_pos = len(output)
+	# starting_pos = len(output)
 	while not is_blank_line(ws, row):
 		trade_info = read_line(ws, row, fields)
-		validate_trade_info(trade_info)
-		output.append(trade_info)
+		if not trade_info is None:
+			validate_trade_info(trade_info)
+			output.append(trade_info)
 		row = row + 1
 
-	total_info = read_total(ws, row)
-	validate_total(total_info, fields, output, starting_pos)
+	# total_info = read_total(ws, row)
+	# validate_total(total_info, fields, output, starting_pos)
 
 
 
@@ -90,6 +98,8 @@ def read_line(ws, row, fields):
 	trade_info = {}
 	column = 0
 
+	use_date_format = ['12229', '12366', '12528', '12548', '12630', '12732', '12733']
+
 	for fld in fields:
 		logger.debug('read_line(): row={0}, column={1}'.format(row, column))
 
@@ -106,7 +116,12 @@ def read_line(ws, row, fields):
 			cell_value = str(int(cell_value))
 		
 		if fld in ['TRDDATE', 'STLDATE', 'ENTRDATE']:
-			cell_value = convert_float_to_datetime(cell_value)
+			# some FT files uses traditional excel date, some uses
+			# a float number to represent date.
+			if trade_info['ACCT_ACNO'] in use_date_format:
+				cell_value = xldate_as_datetime(cell_value, get_datemode())
+			else:
+				cell_value = convert_float_to_datetime(cell_value)
 
 		# if fld in ['QTY', 'ACCRBAS', 'TRADEPRC']:
 		# 	logger.debug('read_line(): read field {0}'.format(fld))
@@ -114,6 +129,13 @@ def read_line(ws, row, fields):
 
 		trade_info[fld] = cell_value
 		column = column + 1
+
+		try:
+			if not trade_info['TRANTYP'] in ['Purch', 'Sale']:
+				trade_info = None
+				break
+		except KeyError:
+			pass
 	# end of for loop
 
 	return trade_info
@@ -157,13 +179,13 @@ def convert_float_to_datetime(value):
 
 
 
-def read_total(ws, row):
-	pass
+# def read_total(ws, row):
+# 	pass
 
 
 
-def validate_total(total_info, fields, output, starting_pos):
-	pass
+# def validate_total(total_info, fields, output, starting_pos):
+# 	pass
 
 
 
@@ -188,9 +210,13 @@ def validate_trade_info(trade_info):
 							format(trade_info['QTY'], trade_info['TRADEPRC']))
 			raise InvalidTradeInfo()
 
-		diff2 = abs(trade_info['PRINB'] * trade_info['FXRATE'] - trade_info['QTY'] * trade_info['TRADEPRC'])
-		diff3 = abs(trade_info['PRINB'] * trade_info['FXRATE'] - trade_info['QTY']/100 * trade_info['TRADEPRC'])
-		if (diff2 > 0.001 and diff3 > 0.001):
+		# for equity trade
+		diff2 = abs(trade_info['PRINB']*trade_info['FXRATE']) - trade_info['QTY']*trade_info['TRADEPRC']
+		
+		# for bond trade
+		diff3 = abs(trade_info['PRINB']*trade_info['FXRATE']) - trade_info['QTY']/100*trade_info['TRADEPRC']
+		# print('diff2={0}, diff3={1}'.format(diff2, diff3))
+		if (abs(diff2) > 0.001 and abs(diff3) > 0.001):
 			logger.error('validate_trade_info(): price validation failed')
 			raise InvalidTradeInfo()
 
@@ -234,41 +260,41 @@ def convert_to_geneva_records(output):
 
 
 
-def map_broker_code(broker_code):
-	"""
-	Effective 2016-12-13, start using the new broker code.
-	"""
-	a_map = {
-		'BOCI':'BOCI-EQ',
-		'CCBS':'CCB2-EQ',
-		'CICC':'CICF-EQ',
-		'CITI':'CG-EQ',
-		'CLSA':'CLSA-EQ',
-		'CMSHK':'CMS6-EQ',
-		'DBAB':'DBG-EQ',
-		'FBCO':'CSFB-EQ',
-		'GSCO':'GS-EQ',
+# def map_broker_code(broker_code):
+# 	"""
+# 	Effective 2016-12-13, start using the new broker code.
+# 	"""
+# 	a_map = {
+# 		'BOCI':'BOCI-EQ',
+# 		'CCBS':'CCB2-EQ',
+# 		'CICC':'CICF-EQ',
+# 		'CITI':'CG-EQ',
+# 		'CLSA':'CLSA-EQ',
+# 		'CMSHK':'CMS6-EQ',
+# 		'DBAB':'DBG-EQ',
+# 		'FBCO':'CSFB-EQ',
+# 		'GSCO':'GS-EQ',
 		
-		# note that for 12307 and other ListCo equity portfolios, since
-		# they only do HK equity, so Guo Tai Jun An securities is mapped
-		# to its HK arm
-		'GUO':'GTHK-EQ',
+# 		# note that for 12307 and other ListCo equity portfolios, since
+# 		# they only do HK equity, so Guo Tai Jun An securities is mapped
+# 		# to its HK arm
+# 		'GUO':'GTHK-EQ',
 
 
-		'HSCL':'HTIL-EQ',
-		'JEFF':'JEF3-EQ',
-		'JPM':'JP-EQ',
-		'MLCO':'MLAP-EQ',
-		'MSCO':'MS-EQ',
-		'NOMURA':'INSA-EQ',
-		'UBS':'UBSW-EQ'
-	}
+# 		'HSCL':'HTIL-EQ',
+# 		'JEFF':'JEF3-EQ',
+# 		'JPM':'JP-EQ',
+# 		'MLCO':'MLAP-EQ',
+# 		'MSCO':'MS-EQ',
+# 		'NOMURA':'INSA-EQ',
+# 		'UBS':'UBSW-EQ'
+# 	}
 
-	try:
-		return a_map[broker_code]
-	except KeyError:
-		logger.error('map_broker_code(): broker code {0} does not have a match.'.format(broker_code))
-		raise UnknownBrokerCode()
+# 	try:
+# 		return a_map[broker_code]
+# 	except KeyError:
+# 		logger.error('map_broker_code(): broker code {0} does not have a match.'.format(broker_code))
+# 		raise UnknownBrokerCode()
 
 
 

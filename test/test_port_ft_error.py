@@ -43,15 +43,15 @@ class TestPortFTError(unittest2.TestCase):
     def test_validate_error(self):
         ws = self.get_worksheet('\\samples\\sample_FT_error.xlsx')
         fields = read_data_fields(ws, 0)
-        trade_info = read_line(ws, 1, fields)
+        trade_info = read_line(ws, 13, fields)
         with self.assertRaises(InvalidTradeInfo):
             validate_trade_info(trade_info)
 
 
 
     def test_validate_error2(self):
-        ws = self.get_worksheet('\\samples\\sample_FT_error2.xlsx')
+        ws = self.get_worksheet('\\samples\\sample_FT_error.xlsx')
         fields = read_data_fields(ws, 0)
-        trade_info = read_line(ws, 1, fields)
+        trade_info = read_line(ws, 14, fields)
         with self.assertRaises(InvalidTradeInfo):
             validate_trade_info(trade_info)

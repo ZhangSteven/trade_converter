@@ -44,46 +44,48 @@ class TestPortFT(unittest2.TestCase):
         ws = self.get_worksheet('\\samples\\sample_FT.xlsx')
         fields = read_data_fields(ws, 0)
         trade_info = read_line(ws, 1, fields)
+        self.assertEqual(trade_info, None)
+
+        trade_info = read_line(ws, 13, fields)
         self.verify_trade_info1(trade_info)
         validate_trade_info(trade_info)
 
-        trade_info = read_line(ws, 3, fields)
+        trade_info = read_line(ws, 17, fields)
         self.verify_trade_info2(trade_info)
         validate_trade_info(trade_info)
 
-        trade_info = read_line(ws, 17, fields)
+
+
+    def test_read_line2(self):
+        ws = self.get_worksheet('\\samples\\sample_FT_12229.xls')
+        fields = read_data_fields(ws, 0)
+
+        trade_info = read_line(ws, 2, fields)
         self.verify_trade_info3(trade_info)
+        validate_trade_info(trade_info)
+
+        trade_info = read_line(ws, 5, fields)
+        self.verify_trade_info4(trade_info)
         validate_trade_info(trade_info)
 
 
 
     def verify_trade_info1(self, trade_info):
         """
-        1st position in sample_FT.xlsx
+        13th position in sample_FT.xlsx
         """
-        self.assertEqual(trade_info['ACCT_ACNO'], '21815')
-        self.assertEqual(trade_info['TRDDATE'], datetime(2016,8,4))
-        self.assertEqual(trade_info['QTY'], 5000000)
-        self.assertEqual(trade_info['TRADEPRC'], '')
-        self.assertEqual(trade_info['SCTYID_ISIN'], 'USG21184AB52')
-        self.assertEqual(trade_info['FXRATE'], 1)
+        self.assertEqual(trade_info['SCTYID_ISIN'], 'XS1328315723')
+        self.assertEqual(trade_info['ENTRDATE'], datetime(2016,6,14))
+        self.assertEqual(trade_info['QTY'], 1000000)
+        self.assertEqual(trade_info['GROSSBAS'], -1003000)
+        self.assertAlmostEqual(trade_info['ACCRBAS'], -25690.97)
+        self.assertEqual(trade_info['LCLCCY'], 'USD')
+        self.assertAlmostEqual(trade_info['TRADEPRC'], 100.3)
+        self.assertAlmostEqual(trade_info['FXRATE'], 1)
 
 
 
     def verify_trade_info2(self, trade_info):
-        """
-        3rd position in sample_FT.xlsx
-        """
-        self.assertEqual(trade_info['SCTYID_SMSEQ'], '')
-        self.assertEqual(trade_info['ENTRDATE'], datetime(2016,8,15))
-        self.assertEqual(trade_info['QTY'], '')
-        self.assertEqual(trade_info['GROSSBAS'], 71250)
-        self.assertEqual(trade_info['ACCRBAS'], '')
-        self.assertEqual(trade_info['LCLCCY'], 'USD')
-
-
-
-    def verify_trade_info3(self, trade_info):
         """
         17th position in sample_FT.xlsx (BIDU US)
         """
@@ -93,3 +95,34 @@ class TestPortFT(unittest2.TestCase):
         self.assertEqual(trade_info['ACCRBAS'], 0)
         self.assertAlmostEqual(trade_info['TRADEPRC'], 162.4842)
         self.assertAlmostEqual(trade_info['FXRATE'], 0.1288917245)
+
+
+
+    def verify_trade_info3(self, trade_info):
+        """
+        2nd position in sample_FT_12229.xls
+        """
+        self.assertEqual(trade_info['SCTYID_SEDOL'], 'B8BTZG2')
+        self.assertEqual(trade_info['TRDDATE'], datetime(2013,6,21))
+        self.assertEqual(trade_info['QTY'], 300000)
+        self.assertAlmostEqual(trade_info['GROSSBAS'], -2163201.81)
+        self.assertAlmostEqual(trade_info['ACCRBAS'], -14818.26)
+        self.assertEqual(trade_info['LCLCCY'], 'USD')
+        self.assertAlmostEqual(trade_info['TRADEPRC'], 92.942)
+        self.assertAlmostEqual(trade_info['FXRATE'], 0.1288950475)
+
+
+
+    def verify_trade_info4(self, trade_info):
+        """
+        5th position in sample_FT_12229.xls
+        """
+        self.assertEqual(trade_info['SCTYID_ISIN'], 'XS0545110354')
+        self.assertEqual(trade_info['STLDATE'], datetime(2015,4,16))
+        self.assertEqual(trade_info['QTY'], 500000)
+        self.assertEqual(trade_info['PRINB'], 4382794.65)
+        self.assertAlmostEqual(trade_info['RGLCCYCLS'], -4106.51)
+        self.assertEqual(trade_info['LCLCCY'], 'USD')
+        self.assertAlmostEqual(trade_info['TRADEPRC'], 113.1)
+        self.assertAlmostEqual(trade_info['FXRATE'], 0.1290272635)
+
