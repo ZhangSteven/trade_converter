@@ -25,6 +25,9 @@ class InvalidFieldValue(Exception):
 class InvalidTradeInfo(Exception):
 	pass
 
+class LocationAccountNotFound(Exception):
+	pass
+
 
 
 def convert_ft(files):
@@ -98,8 +101,6 @@ def read_line(ws, row, fields):
 	trade_info = {}
 	column = 0
 
-	use_date_format = ['12229', '12366', '12528', '12548', '12630', '12732', '12733']
-
 	for fld in fields:
 		logger.debug('read_line(): row={0}, column={1}'.format(row, column))
 
@@ -118,7 +119,7 @@ def read_line(ws, row, fields):
 		if fld in ['TRDDATE', 'STLDATE', 'ENTRDATE']:
 			# some FT files uses traditional excel date, some uses
 			# a float number to represent date.
-			if trade_info['ACCT_ACNO'] in use_date_format:
+			if is_htm_portfolio(trade_info['ACCT_ACNO']):
 				cell_value = xldate_as_datetime(cell_value, get_datemode())
 			else:
 				cell_value = convert_float_to_datetime(cell_value)
@@ -139,6 +140,15 @@ def read_line(ws, row, fields):
 	# end of for loop
 
 	return trade_info
+
+
+
+def is_htm_portfolio(portfolio_id):
+	htm_portfolio = ['12229', '12366', '12528', '12548', '12630', '12732', '12733']
+	if portfolio_id in htm_portfolio:
+		return True
+	else:
+		return False
 
 
 
@@ -176,16 +186,6 @@ def convert_float_to_datetime(value):
 	day = int((value - month*1000000)/10000)
 	year = int(value - month*1000000 - day*10000)
 	return datetime(year, month, day)
-
-
-
-# def read_total(ws, row):
-# 	pass
-
-
-
-# def validate_total(total_info, fields, output, starting_pos):
-# 	pass
 
 
 
@@ -260,41 +260,18 @@ def convert_to_geneva_records(output):
 
 
 
-# def map_broker_code(broker_code):
-# 	"""
-# 	Effective 2016-12-13, start using the new broker code.
-# 	"""
-# 	a_map = {
-# 		'BOCI':'BOCI-EQ',
-# 		'CCBS':'CCB2-EQ',
-# 		'CICC':'CICF-EQ',
-# 		'CITI':'CG-EQ',
-# 		'CLSA':'CLSA-EQ',
-# 		'CMSHK':'CMS6-EQ',
-# 		'DBAB':'DBG-EQ',
-# 		'FBCO':'CSFB-EQ',
-# 		'GSCO':'GS-EQ',
-		
-# 		# note that for 12307 and other ListCo equity portfolios, since
-# 		# they only do HK equity, so Guo Tai Jun An securities is mapped
-# 		# to its HK arm
-# 		'GUO':'GTHK-EQ',
+def get_LocationAccount(portfolio_id):
+	boc_portfolios = ['12229', '12366', '12528', '12630', '12732', '12733']
+	jpm_portfolios = ['12548']
 
-
-# 		'HSCL':'HTIL-EQ',
-# 		'JEFF':'JEF3-EQ',
-# 		'JPM':'JP-EQ',
-# 		'MLCO':'MLAP-EQ',
-# 		'MSCO':'MS-EQ',
-# 		'NOMURA':'INSA-EQ',
-# 		'UBS':'UBSW-EQ'
-# 	}
-
-# 	try:
-# 		return a_map[broker_code]
-# 	except KeyError:
-# 		logger.error('map_broker_code(): broker code {0} does not have a match.'.format(broker_code))
-# 		raise UnknownBrokerCode()
+	if portfolio_id in boc_portfolios:
+		return 'BOCHK'
+	elif portfolio_id in jpm_portfolios:
+		return 'JPM'
+	else:
+		logger.error('get_LocationAccount(): no LocationAccount found for portfolio id {0}'.
+						format(portfolio_id))
+		raise LocationAccountNotFound()
 
 
 
@@ -303,7 +280,6 @@ def create_record(trade_info, record_fields):
 	known_fields = {
 		'RecordAction':'InsertUpdate',
 		'KeyValue.KeyName':'UserTranId1',
-		'LocationAccount':'JPM',
 		'Strategy':'Default',
 		'PriceDenomination':'CALC',
 		'NetInvestmentAmount':'CALC',
@@ -312,7 +288,7 @@ def create_record(trade_info, record_fields):
 		'NotionalAmount':'CALC',
 		'FundStructure':'CALC',
 		'CounterFXDenomination':'USD',
-		'CounterTDateFx':'',
+		# 'CounterTDateFx':'',
 		'AccruedInterest':'CALC',
 		'InvestmentAccruedInterest':'CALC'
 	}
@@ -333,6 +309,8 @@ def create_record(trade_info, record_fields):
 			new_record[record_field] = new_record['KeyValue']
 		elif record_field == 'Portfolio':
 			new_record[record_field] = trade_info['Acct#']
+		elif record_field == 'LocationAccount':
+			new_record[record_field] = get_LocationAccount(trade_info['Acct#'])
 		elif record_field == 'Investment':
 			new_record[record_field] = get_geneva_investment_id(trade_info)[1]
 		elif record_field == 'Broker':
