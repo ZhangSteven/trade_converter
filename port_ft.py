@@ -16,6 +16,8 @@ from trade_converter.utility import logger, get_datemode, get_record_fields, \
 from xlrd import open_workbook
 from xlrd.xldate import xldate_as_datetime
 from datetime import datetime
+from investment_lookup.id_lookup import get_investment_Ids, \
+										get_portfolio_accounting_treatment
 
 
 
@@ -26,6 +28,15 @@ class InvalidTradeInfo(Exception):
 	pass
 
 class LocationAccountNotFound(Exception):
+	pass
+
+class PortfolioCurrencyNotFound(Exception):
+	pass
+
+class InvestmentIdNotFound(Exception):
+	pass
+
+class TradeExpenseNotHandled(Exception):
 	pass
 
 
@@ -144,11 +155,17 @@ def read_line(ws, row, fields):
 
 
 def is_htm_portfolio(portfolio_id):
-	htm_portfolio = ['12229', '12366', '12528', '12548', '12630', '12732', '12733']
-	if portfolio_id in htm_portfolio:
+	# htm_portfolio = ['12229', '12366', '12528', '12548', '12630', '12732', '12733']
+	# if portfolio_id in htm_portfolio:
+	# 	return True
+	# else:
+	# 	return False
+
+	if get_portfolio_accounting_treatment(portfolio_id) == 'HTM':
 		return True
 	else:
 		return False
+
 
 
 
@@ -275,25 +292,66 @@ def get_LocationAccount(portfolio_id):
 
 
 
+def get_portfolio_currency(portfolio_id):
+	# A portfolio's base currency
+	usd_portfolio = ['21815']
+	hkd_portfolio = ['12229', '12366', '12528', '12548', '12630', '12732', '12733']
+
+	if portfolio_id in usd_portfolio:
+		return 'USD'
+	elif portfolio_id in hkd_portfolio:
+		return 'HKD'
+	else:
+		logger.error('get_portfolio_currency(): no portfolio currency found for {0}'.
+						format(portfolio_id))
+		raise PortfolioCurrencyNotFound()
+
+
+
+def get_FT_portfolio_currency(portfolio_id):
+	# FT portfolio's base currency setting. It is not always consistent with
+	# the correct setting.
+	FT_usd_portfolio = ['21815']
+	FT_hkd_portfolio = ['12229', '12366', '12528', '12548', '12630', '12732', \
+						'12733', '12307', '19437']
+
+	if portfolio_id in FT_usd_portfolio:
+		return 'USD'
+	elif portfolio_id in FT_hkd_portfolio:
+		return 'HKD'
+	else:
+		logger.error('get_FT_portfolio_currency(): no portfolio currency found for {0}'.
+						format(portfolio_id))
+		raise PortfolioCurrencyNotFound()
+
+
+
+def get_CounterTDateFx(portfolio_id, FT_fx):
+	if get_portfolio_currency(portfolio_id) == get_FT_portfolio_currency(portfolio_id):
+		return FT_fx
+	else:
+		return ''
+
+
+
 def create_record(trade_info, record_fields):
 
 	known_fields = {
 		'RecordAction':'InsertUpdate',
 		'KeyValue.KeyName':'UserTranId1',
 		'Strategy':'Default',
+		'Broker':'journaling entries',
 		'PriceDenomination':'CALC',
 		'NetInvestmentAmount':'CALC',
 		'NetCounterAmount':'CALC',
 		'TradeFX':'',
 		'NotionalAmount':'CALC',
 		'FundStructure':'CALC',
-		'CounterFXDenomination':'USD',
-		# 'CounterTDateFx':'',
 		'AccruedInterest':'CALC',
 		'InvestmentAccruedInterest':'CALC'
 	}
 	
-	trade_type = {'B':'Buy', 'S':'Sell'}
+	trade_type = {'Purch':'Buy', 'Sale':'Sell'}
 
 	new_record = {}
 	for record_field in record_fields:
@@ -302,34 +360,40 @@ def create_record(trade_info, record_fields):
 			new_record[record_field] = known_fields[record_field]
 
 		if record_field == 'RecordType':
-			new_record[record_field] = trade_type[trade_info['B/S']]
-		elif record_field == 'KeyValue':
-			new_record[record_field] = create_record_key_value(trade_info)
-		elif record_field == 'UserTranId1':
-			new_record[record_field] = new_record['KeyValue']
+			new_record[record_field] = trade_type[trade_info['TRANTYP']]
+		# elif record_field == 'KeyValue':
+		# 	new_record[record_field] = create_record_key_value(trade_info)
+		# elif record_field == 'UserTranId1':
+		# 	new_record[record_field] = new_record['KeyValue']
 		elif record_field == 'Portfolio':
-			new_record[record_field] = trade_info['Acct#']
+			new_record[record_field] = trade_info['ACCT_ACNO']
 		elif record_field == 'LocationAccount':
-			new_record[record_field] = get_LocationAccount(trade_info['Acct#'])
+			new_record[record_field] = get_LocationAccount(trade_info['ACCT_ACNO'])
 		elif record_field == 'Investment':
 			new_record[record_field] = get_geneva_investment_id(trade_info)[1]
-		elif record_field == 'Broker':
-			new_record[record_field] = map_broker_code(trade_info['BrkCd'])
+		# elif record_field == 'Broker':
+		# 	new_record[record_field] = map_broker_code(trade_info['BrkCd'])
 		elif record_field == 'EventDate':
-			new_record[record_field] = convert_datetime_to_string(trade_info['Trd Dt'])
+			new_record[record_field] = convert_datetime_to_string(trade_info['TRDDATE'])
 		elif record_field == 'SettleDate':
-			new_record[record_field] = convert_datetime_to_string(trade_info['Setl Dt'])
+			new_record[record_field] = convert_datetime_to_string(trade_info['STLDATE'])
 		elif record_field == 'ActualSettleDate':
 			new_record[record_field] = new_record['SettleDate']
 		elif record_field == 'Quantity':
-			new_record[record_field] = trade_info['Units']
+			new_record[record_field] = trade_info['QTY']
 		elif record_field == 'Price':
-			new_record[record_field] = trade_info['Unit Price']
+			new_record[record_field] = trade_info['TRADEPRC']
 		elif record_field == 'CounterInvestment':
-			new_record[record_field] = trade_info['Cur']
+			new_record[record_field] = trade_info['LCLCCY']
+		elif record_field == 'CounterFXDenomination':
+			new_record[record_field] = get_portfolio_currency(trade_info['ACCT_ACNO'])
+		elif record_field == 'CounterTDateFx':
+			new_record[record_field] = get_CounterTDateFx(trade_info['ACCT_ACNO'], trade_info['FXRATE'])
 		elif record_field == 'trade_expenses':
 			new_record[record_field] = get_trade_expenses(trade_info)
 	# end of for loop
+
+	create_record_key_value(new_record, trade_info['PRINB'])
 
 	return new_record
 
@@ -337,55 +401,52 @@ def create_record(trade_info, record_fields):
 
 def get_geneva_investment_id(trade_info):
 	"""
-	As portfolio 12307 is an equity portfolio, the Geneva investment id
-	is the Bloomberg ticker without the yellow key, e.g., '11 HK'.
+	Get the Geneva investment ID for a position. 
 
-	So assumptions for this function are:
-
-	1. All investment is equity.
-	2. In the holdings of the portfolio, the ISIN number to ticker mapping
-	is unique.
+	The function is not complete yet, now we assume it is only used for
+	HTM portfolios only, otherwise it will throw an error.
 	"""
+	if not is_htm_portfolio(trade_info['ACCT_ACNO']):
+		logger.error('get_geneva_investment_id(): not a HTM portfolio')
+		raise InvestmentIdNotFound()
 
-	# use a function attribute to store the lookup table, as there is only
-	# one instance of a function, all invocations access the same variable.
-	# see http://stackoverflow.com/questions/279561/what-is-the-python-equivalent-of-static-variables-inside-a-function
-	if 'i_lookup' not in get_geneva_investment_id.__dict__:
-		get_geneva_investment_id.i_lookup = {}
-
-	investment_lookup = get_geneva_investment_id.i_lookup
-	if len(investment_lookup) == 0:
-		lookup_file = get_current_path() + '\\investmentLookup.xls'
-		initialize_investment_lookup(investment_lookup, lookup_file)
-
-	# return (name, investment_id)
-	return investment_lookup[trade_info['ISIN']]
+	if trade_info['SCTYID_ISIN'] != '':
+		return get_investment_Ids(trade_info['ACCT_ACNO'], 'ISIN', trade_info['SCTYID_ISIN'])[0]
+	elif trade_info['SCTYID_SEDOL'] != '':
+		return get_investment_Ids(trade_info['ACCT_ACNO'], 'SEDOL', trade_info['SCTYID_SEDOL'])[0]
+	elif trade_info['SCTYID_CUSIP'] != '':
+		return get_investment_Ids(trade_info['ACCT_ACNO'], 'CUSIP', trade_info['SCTYID_CUSIP'])[0]
+	else:
+		logger.error('get_geneva_investment_id(): no security identifier found for SCTYID_SMSEQ:{0}'.
+						format(trade_info['SCTYID_SMSEQ']))
+		raise InvestmentIdNotFound()
 
 
 
-def initialize_investment_lookup(investment_lookup, lookup_file):
-	"""
-	Initialize the lookup table from a file, mapping isin code to investment_id.
 
-	To lookup,
+# def initialize_investment_lookup(investment_lookup, lookup_file):
+# 	"""
+# 	Initialize the lookup table from a file, mapping isin code to investment_id.
 
-	name, investment_id = investment_lookup(security_id_type, security_id)
-	"""
-	logger.debug('initialize_investment_lookup(): on file {0}'.format(lookup_file))
+# 	To lookup,
 
-	wb = open_workbook(filename=lookup_file)
-	ws = wb.sheet_by_name('Sheet1')
-	row = 1
-	while (row < ws.nrows):
-		isin = ws.cell_value(row, 0)
-		if isin.strip() == '':
-			break
+# 	name, investment_id = investment_lookup(security_id_type, security_id)
+# 	"""
+# 	logger.debug('initialize_investment_lookup(): on file {0}'.format(lookup_file))
 
-		name = ws.cell_value(row, 1).strip()
-		investment_id = ws.cell_value(row, 2).strip()
+# 	wb = open_workbook(filename=lookup_file)
+# 	ws = wb.sheet_by_name('Sheet1')
+# 	row = 1
+# 	while (row < ws.nrows):
+# 		isin = ws.cell_value(row, 0)
+# 		if isin.strip() == '':
+# 			break
 
-		investment_lookup[isin] = (name, investment_id)
-		row = row + 1
+# 		name = ws.cell_value(row, 1).strip()
+# 		investment_id = ws.cell_value(row, 2).strip()
+
+# 		investment_lookup[isin] = (name, investment_id)
+# 		row = row + 1
 
 
 
@@ -397,18 +458,19 @@ def get_trade_expenses(trade_info):
 	miscellaneous fees.
 
 	Return trade_expenses, as a list of (expense_code, expense_value) tuples.
+
+	For FT historical trades, equity trade expenses are not handled yet.
+	currently we only handle bond trades, there is no trade expense.
 	"""
-	trade_expenses = [('CommissionTradeExpense', trade_info['Commission']), 
-						('Stamp_Duty', trade_info['Tax']), 
-						('Exchange_Fee', 0), 
-						('Transaction_Levy', trade_info['SEC Fee']), 
-						('Misc_Fee', trade_info['Fees'])]
+	if not is_htm_portfolio(trade_info['ACCT_ACNO']):
+		logger.error('get_trade_expenses(): trade expense not handled')
+		raise TradeExpenseNotHandled()
 
-	return trade_expenses
+	return []	# no explicit trade expense for bond trade
 
 
 
-def create_record_key_value(trade_info):
+def create_record_key_value(record, net_amount):
 	"""
 	Geneva needs to have a unique key value associated with each record,
 	so that different records won't overwrite each other, but the same
@@ -422,9 +484,8 @@ def create_record_key_value(trade_info):
 
 	<portfolio_code>_<trade_date>_<Buy or Sell>_<hash value of (isin, net_settlement, broker)>
 	"""
-	trade_type = {'B':'Buy', 'S':'Sell'}
-	return trade_info['Acct#'] + '_' + convert_datetime_to_string(trade_info['Trd Dt']) \
-			+ '_' + trade_type[trade_info['B/S']] + '_' + trade_info['ISIN'] \
-			+ '_' + str(int(trade_info['Net Setl']*10000)) + '_' + trade_info['BrkCd']
+	record['KeyValue'] = record['Portfolio']+ '_' + record['EventDate'] + '_' \
+							+ record['RecordType'] + '_' + record['Investment'] \
+							+ '_' + str(int(net_amount*10000))
 
-
+	record['UserTranId1'] = record['KeyValue']
