@@ -13,6 +13,8 @@
 from trade_converter.utility import logger, get_datemode, get_record_fields, \
 									get_current_path, convert_datetime_to_string, \
 									is_blank_line, is_empty_cell
+from trade_converter.port_12307 import convert_to_geneva_records, \
+									fix_duplicate_key_value
 from xlrd import open_workbook
 from xlrd.xldate import xldate_as_datetime
 from datetime import datetime
@@ -78,15 +80,17 @@ def read_transaction_file(trade_file, output):
 	
 	row = 1
 	# starting_pos = len(output)
-	while not is_blank_line(ws, row):
+	while row < ws.nrows:
+		if is_blank_line(ws, row):
+			break
+
 		trade_info = read_line(ws, row, fields)
 		if not trade_info is None:
 			validate_trade_info(trade_info)
 			output.append(trade_info)
-		row = row + 1
 
-	# total_info = read_total(ws, row)
-	# validate_total(total_info, fields, output, starting_pos)
+		row = row + 1
+	# end of while loop
 
 
 
@@ -124,7 +128,7 @@ def read_line(ws, row, fields):
 		if fld == 'ACCT_ACNO':
 			cell_value = str(int(cell_value))
 
-		if fld in ['SCTYID_SMSEQ', 'SCTYID_CUSIP'] and isinstance(cell_value, float):
+		if fld in ['SCTYID_SMSEQ', 'SCTYID_SEDOL', 'SCTYID_CUSIP'] and isinstance(cell_value, float):
 			cell_value = str(int(cell_value))
 		
 		if fld in ['TRDDATE', 'STLDATE', 'ENTRDATE']:
@@ -168,9 +172,8 @@ def is_htm_portfolio(portfolio_id):
 
 
 
-
 def check_field_type(fld, cell_value):
-	if fld in ['TRANTYP', 'TRANCOD', 'LCLCCY', 'SCTYID_SEDOL', 'SCTYID_ISIN'] \
+	if fld in ['TRANTYP', 'TRANCOD', 'LCLCCY', 'SCTYID_ISIN'] \
 		and not isinstance(cell_value, str):
 		logger.error('check_field_type(): field {0} should be string, value={1}'.
 						format(fld, cell_value))
@@ -181,17 +184,6 @@ def check_field_type(fld, cell_value):
 		logger.error('check_field_type(): field {0} should be float, value={1}'.
 							format(fld, cell_value))
 		raise InvalidFieldValue()
-
-
-
-# def read_value_as_float(cell_value):
-# 	if cell_value == '':
-# 		return 0
-# 	if isinstance(cell_value, float):
-# 		return cell_value
-
-# 	logger.error('read_value_as_float(): invalid value={1}'.format(fld, cell_value))
-# 	raise InvalidFieldValue()
 
 
 
@@ -217,8 +209,8 @@ def validate_trade_info(trade_info):
 		raise InvalidTradeInfo()
 
 	diff = abs(trade_info['GROSSBAS'] * trade_info['FXRATE'] - trade_info['GROSSLCL'])
-	if diff > 0.001:
-		logger.error('validate_trade_info(): FX validation failed')
+	if diff > 0.01:
+		logger.error('validate_trade_info(): FX validation failed, diff={0}'.format(diff))
 		raise InvalidTradeInfo()
 
 	if trade_info['TRANTYP'] in ['Purch', 'Sale']:
@@ -233,37 +225,37 @@ def validate_trade_info(trade_info):
 		# for bond trade
 		diff3 = abs(trade_info['PRINB']*trade_info['FXRATE']) - trade_info['QTY']/100*trade_info['TRADEPRC']
 		# print('diff2={0}, diff3={1}'.format(diff2, diff3))
-		if (abs(diff2) > 0.001 and abs(diff3) > 0.001):
+		if (abs(diff2) > 0.01 and abs(diff3) > 0.01):
 			logger.error('validate_trade_info(): price validation failed')
 			raise InvalidTradeInfo()
 
 
 
-def fix_duplicate_key_value(records):
-	"""
-	Detect whether there are duplicate keyvalues for different records,
-	if there are, modify the keyvalues to make all keys unique.
-	"""
-	keys = []
-	for record in records:
-		i = 1
-		temp_key = record['KeyValue']
-		while temp_key in keys:
-			temp_key = record['KeyValue'] + '_' + str(i)
-			i = i + 1
+# def fix_duplicate_key_value(records):
+# 	"""
+# 	Detect whether there are duplicate keyvalues for different records,
+# 	if there are, modify the keyvalues to make all keys unique.
+# 	"""
+# 	keys = []
+# 	for record in records:
+# 		i = 1
+# 		temp_key = record['KeyValue']
+# 		while temp_key in keys:
+# 			temp_key = record['KeyValue'] + '_' + str(i)
+# 			i = i + 1
 
-		record['KeyValue'] = temp_key
-		keys.append(record['KeyValue'])
+# 		record['KeyValue'] = temp_key
+# 		keys.append(record['KeyValue'])
 
-	# check again
-	keys = []
-	for record in records:
-		if record['KeyValue'] in keys:
-			logger.error('fix_duplicate_key_value(): duplicate keys still exists, key={0}, investment={1}'.
-							format(record['KeyValue'], record['Investment']))
-			raise DuplicateKeys()
+# 	# check again
+# 	keys = []
+# 	for record in records:
+# 		if record['KeyValue'] in keys:
+# 			logger.error('fix_duplicate_key_value(): duplicate keys still exists, key={0}, investment={1}'.
+# 							format(record['KeyValue'], record['Investment']))
+# 			raise DuplicateKeys()
 
-		keys.append(record['KeyValue'])
+# 		keys.append(record['KeyValue'])
 
 
 
@@ -361,18 +353,12 @@ def create_record(trade_info, record_fields):
 
 		if record_field == 'RecordType':
 			new_record[record_field] = trade_type[trade_info['TRANTYP']]
-		# elif record_field == 'KeyValue':
-		# 	new_record[record_field] = create_record_key_value(trade_info)
-		# elif record_field == 'UserTranId1':
-		# 	new_record[record_field] = new_record['KeyValue']
 		elif record_field == 'Portfolio':
 			new_record[record_field] = trade_info['ACCT_ACNO']
 		elif record_field == 'LocationAccount':
 			new_record[record_field] = get_LocationAccount(trade_info['ACCT_ACNO'])
 		elif record_field == 'Investment':
-			new_record[record_field] = get_geneva_investment_id(trade_info)[1]
-		# elif record_field == 'Broker':
-		# 	new_record[record_field] = map_broker_code(trade_info['BrkCd'])
+			new_record[record_field] = get_geneva_investment_id(trade_info)
 		elif record_field == 'EventDate':
 			new_record[record_field] = convert_datetime_to_string(trade_info['TRDDATE'])
 		elif record_field == 'SettleDate':
@@ -423,33 +409,6 @@ def get_geneva_investment_id(trade_info):
 
 
 
-
-# def initialize_investment_lookup(investment_lookup, lookup_file):
-# 	"""
-# 	Initialize the lookup table from a file, mapping isin code to investment_id.
-
-# 	To lookup,
-
-# 	name, investment_id = investment_lookup(security_id_type, security_id)
-# 	"""
-# 	logger.debug('initialize_investment_lookup(): on file {0}'.format(lookup_file))
-
-# 	wb = open_workbook(filename=lookup_file)
-# 	ws = wb.sheet_by_name('Sheet1')
-# 	row = 1
-# 	while (row < ws.nrows):
-# 		isin = ws.cell_value(row, 0)
-# 		if isin.strip() == '':
-# 			break
-
-# 		name = ws.cell_value(row, 1).strip()
-# 		investment_id = ws.cell_value(row, 2).strip()
-
-# 		investment_lookup[isin] = (name, investment_id)
-# 		row = row + 1
-
-
-
 def get_trade_expenses(trade_info):
 	"""
 	Extract trade related expenses and group them into 5 categories:
@@ -485,7 +444,21 @@ def create_record_key_value(record, net_amount):
 	<portfolio_code>_<trade_date>_<Buy or Sell>_<hash value of (isin, net_settlement, broker)>
 	"""
 	record['KeyValue'] = record['Portfolio']+ '_' + record['EventDate'] + '_' \
-							+ record['RecordType'] + '_' + record['Investment'] \
-							+ '_' + str(int(net_amount*10000))
+							+ record['RecordType'] + '_' \
+							+ convert_investment_id(record['Investment']) \
+							+ str(int(abs(net_amount*10000)))
 
 	record['UserTranId1'] = record['KeyValue']
+
+
+
+def convert_investment_id(investment_id):
+	"""
+	Geneva investment id may contain spaces, replace the spaces with
+	underscore ('_')
+	"""
+	result = ''
+	for token in investment_id.split():
+		result = result + token + '_'
+
+	return result

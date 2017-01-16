@@ -5,9 +5,10 @@ Test the open_jpm.py
 import unittest2
 from datetime import datetime
 from xlrd import open_workbook
-from trade_converter.utility import get_current_path
+from trade_converter.utility import get_current_path, get_record_fields
 from trade_converter.port_ft import read_data_fields, read_line, \
-                                    validate_trade_info
+                                    validate_trade_info, create_record, \
+                                    convert_ft
 
 
 
@@ -67,6 +68,61 @@ class TestPortFT(unittest2.TestCase):
         trade_info = read_line(ws, 5, fields)
         self.verify_trade_info4(trade_info)
         validate_trade_info(trade_info)
+
+
+
+    def test_create_record1(self):
+        ws = self.get_worksheet('\\samples\\sample_FT_12229.xls')
+        fields = read_data_fields(ws, 0)
+
+        trade_info = read_line(ws, 2, fields)
+        record = create_record(trade_info, get_record_fields())
+        self.verify_record1(record)
+
+        trade_info = read_line(ws, 5, fields)
+        record = create_record(trade_info, get_record_fields())
+        self.verify_record2(record)
+
+
+
+    def test_read_file(self):
+        files = [get_current_path() + '\\samples\\sample_FT_12229.xls']
+        records = convert_ft(files)
+        self.assertEqual(len(records), 3)
+        self.verify_record1(records[0])
+        self.verify_record2(records[2])
+        
+
+
+    def verify_record1(self, record):
+        self.assertEqual(len(record), 27)
+        self.assertEqual(record['RecordType'], 'Buy')
+        self.assertEqual(record['KeyValue'], '12229_2013-6-21_Buy_USY97279AB28_HTM_21632018100')
+        self.assertEqual(record['Portfolio'], '12229')
+        self.assertEqual(record['LocationAccount'], 'BOCHK')
+        self.assertEqual(record['Investment'], 'USY97279AB28 HTM')
+        self.assertEqual(record['SettleDate'], '2013-6-26')
+        self.assertEqual(record['Quantity'], 300000)
+        self.assertAlmostEqual(record['Price'], 92.942)
+        self.assertAlmostEqual(record['CounterTDateFx'], 0.1288950475)
+        self.assertEqual(record['CounterFXDenomination'], 'HKD')
+        self.assertEqual(record['CounterInvestment'], 'USD')
+
+
+
+    def verify_record2(self, record):
+        self.assertEqual(len(record), 27)
+        self.assertEqual(record['RecordType'], 'Sell')
+        self.assertEqual(record['KeyValue'], '12548_2015-4-14_Sell_XS0545110354_HTM_43827946500')
+        self.assertEqual(record['Portfolio'], '12548')
+        self.assertEqual(record['LocationAccount'], 'JPM')
+        self.assertEqual(record['Investment'], 'XS0545110354 HTM')
+        self.assertEqual(record['SettleDate'], '2015-4-16')
+        self.assertEqual(record['Quantity'], 500000)
+        self.assertAlmostEqual(record['Price'], 113.1)
+        self.assertAlmostEqual(record['CounterTDateFx'], 0.1290272635)
+        self.assertEqual(record['CounterFXDenomination'], 'HKD')
+        self.assertEqual(record['CounterInvestment'], 'USD')
 
 
 

@@ -26,6 +26,16 @@ Todo
 
 2. Consider move the isin code to ticker lookup to investment_lookup project.
 
+3. Find out why US treasury bond/note trade has inconsistency, only in 12528 portfolio.
+
+
+
+
++++++++++++
+ver 0.13
++++++++++++
+1. Add module port_ft.py for FT historical trades, works for all purchase/sale trades except a few US treasury bond/note trades in 12528 portfolio.
+
 
 
 +++++++++++

@@ -182,6 +182,7 @@ def map_broker_code(broker_code):
 		'CCBS':'CCB2-EQ',
 		'CICC':'CICF-EQ',
 		'CITI':'CG-EQ',
+		'SBSH':'CG-EQ',		# see 12307 Dec 05 trade file
 		'CLSA':'CLSA-EQ',
 		'CMSHK':'CMS6-EQ',
 		'DBAB':'DBG-EQ',
