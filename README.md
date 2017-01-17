@@ -38,6 +38,12 @@ Todo
 5. For ft format, add support for AFS portfolios, now only supports HTM portfolio, mainly in the get_geneva_investment_id() part.
 
 
++++++++++++
+ver 0.15
++++++++++++
+1. Bug fix: when duplicate keys detected, the key value is changed, but the UserTranId1 field does not change at the same time. Now both of them will change at the same time.
+
+
 
 +++++++++++
 ver 0.14

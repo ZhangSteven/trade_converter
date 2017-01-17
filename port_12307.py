@@ -149,6 +149,7 @@ def fix_duplicate_key_value(records):
 			i = i + 1
 
 		record['KeyValue'] = temp_key
+		record['UserTranId1'] = temp_key
 		keys.append(record['KeyValue'])
 
 	# check again
