@@ -12,7 +12,7 @@
 #
 from trade_converter.utility import logger, get_datemode, get_record_fields, \
 									get_current_path, convert_datetime_to_string, \
-									is_blank_line, is_empty_cell
+									is_blank_line, is_empty_cell, get_input_directory
 from trade_converter.port_12307 import convert_to_geneva_records, \
 									fix_duplicate_key_value
 from xlrd import open_workbook
@@ -20,6 +20,7 @@ from xlrd.xldate import xldate_as_datetime
 from datetime import datetime
 from investment_lookup.id_lookup import get_investment_Ids, \
 										get_portfolio_accounting_treatment
+import csv
 
 
 
@@ -55,6 +56,8 @@ def convert_ft(files):
 	output = []
 	for f in files:
 		read_transaction_file(f, output)
+
+	create_geneva_flat_file(output)
 
 	records = convert_to_geneva_records(output)
 	fix_duplicate_key_value(records)
@@ -462,3 +465,38 @@ def convert_investment_id(investment_id):
 		result = result + token + '_'
 
 	return result
+
+
+
+def create_geneva_flat_file(output):
+	"""
+	Extract the ISIN code for each trade, create a Geneva flat file
+	to load security master.
+	
+	The flat file consists of one entry per line, as follows:
+
+	941,Ticker,HK,Equity;
+	USY39656AA40,Isin,,;
+
+	For HTM bond, upload the file to \\clfhkgvapp01\FlatFileHTM
+
+	For others (equity and AFS bond), upload the file to 
+	\\clfhkgvapp01\FlatFile
+	"""
+	isin_list = []
+	for trade_info in output:
+		if trade_info['SCTYID_ISIN'] in isin_list:
+			continue
+		elif trade_info['SCTYID_ISIN'].strip() == '':
+			print('empty isin code!!')
+			import sys
+			sys.exit()
+		else:
+			isin_list.append(trade_info['SCTYID_ISIN'])
+
+
+	with open(get_input_directory()+'\\bondmaster.csv', 'w', newline='') as csvfile:
+		file_writer = csv.writer(csvfile)
+		
+		for isin in isin_list:
+			file_writer.writerow([isin, 'Isin', '', ';'])

@@ -1,18 +1,23 @@
 # trade_converter
 
-Convert the 12307 portfolio's trade file format to Advent Geneva system's trade quick import format.
+Extract buy/sell trades from files and convert them to Advent Geneva system's trade quick import format.
 
 +++++++++++
 How to use
 +++++++++++
 
-To convert a single trade file to upload format, use
+To extract trades from a single file, use
 
-	python tc.py <portfolio_code> --file <trade_file>
+	python tc.py <portfolio_file_format> --file <trade_file>
 
-To convert multiple trade files under a directory, use
+	where <portfolio_file_format> can be:
+	1. clamc: trade files from P:\settlement folder. Or,
+	2. ft: FT's historical transactions file.
 
-	python tc.py <portfolio_code> --folder <folder_name>
+To extract from multiple files under a directory, use
+
+	python tc.py <portfolio_file_format> --folder <folder_name>
+
 
 To run unit test, use
 
@@ -28,6 +33,18 @@ Todo
 
 3. Find out why US treasury bond/note trade has inconsistency, only in 12528 portfolio.
 
+4. For clamc format, add support for bond trades, now only supports equity trade.
+
+5. For ft format, add support for AFS portfolios, now only supports HTM portfolio, mainly in the get_geneva_investment_id() part.
+
+
+
++++++++++++
+ver 0.14
++++++++++++
+1. Changed input parameter to format (clamc or ft) instead of portfolio code. Now it works for 11490 as well.
+
+2. Updated investmentLookup.xls for trades from 11490.
 
 
 

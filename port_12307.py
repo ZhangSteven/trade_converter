@@ -110,9 +110,9 @@ def validate_trade_info(trade_info):
 	logger.debug('validate_trade_info(): trade date={0}, isin={1}'.
 					format(trade_info['Trd Dt'], trade_info['ISIN']))
 	
-	if trade_info['Acct#'] != '12307':
-		logger.error('validate_trade_info(): invalid portfolio code: {0}'.format(trade_info['Acct#']))
-		raise InvalidTradeInfo
+	# if trade_info['Acct#'] != '12307':
+	# 	logger.error('validate_trade_info(): invalid portfolio code: {0}'.format(trade_info['Acct#']))
+	# 	raise InvalidTradeInfo
 
 	if trade_info['B/S'] == 'B':
 		settled_amount = trade_info['Units']*trade_info['Unit Price'] + \
@@ -177,6 +177,7 @@ def map_broker_code(broker_code):
 	"""
 	Effective 2016-12-13, start using the new broker code.
 	"""
+	# print(broker_code)
 	a_map = {
 		'BOCI':'BOCI-EQ',
 		'CCBS':'CCB2-EQ',
@@ -201,7 +202,10 @@ def map_broker_code(broker_code):
 		'MLCO':'MLAP-EQ',
 		'MSCO':'MS-EQ',
 		'NOMURA':'INSA-EQ',
-		'UBS':'UBSW-EQ'
+		'UBS':'UBSW-EQ',
+		'CEBSS':'EBSI-EQ',
+		'DAIW':'DAR5-EQ',
+		'GFS':'GF01-EQ'
 	}
 
 	try:
@@ -213,7 +217,7 @@ def map_broker_code(broker_code):
 
 
 def create_record(trade_info, record_fields):
-
+	# print(trade_info['Trd Dt'])
 	known_fields = {
 		'RecordAction':'InsertUpdate',
 		'KeyValue.KeyName':'UserTranId1',
@@ -295,6 +299,7 @@ def get_geneva_investment_id(trade_info):
 		initialize_investment_lookup(investment_lookup, lookup_file)
 
 	# return (name, investment_id)
+	logger.debug('get_geneva_investment_id(): trade date {0}'.format(trade_info['Trd Dt']))
 	return investment_lookup[trade_info['ISIN']]
 
 

@@ -27,7 +27,7 @@ def get_all_trade_files(directory):
 	under the directory are trade files. Other files and sub directories
 	are ignored.
 	"""
-	return glob.glob(directory+'\\*.xls')
+	return glob.glob(directory+'\\*.xls*')
 
 
 
