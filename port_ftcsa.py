@@ -3,11 +3,12 @@
 # Copied from port_ft.py, the difference is that this program only looks for
 # the following types of transactions:
 #
-# 1. CSA: transferred in
-# 2. CSW: transferred out
-# 3. IATSW: transferred out
-# 4. CALLED: called by issuer
-# 5. TNDRL: buy back by issuer
+# 1. CSA: transferred in (from accounts not under FT)
+# 2. CSW: transferred out (to accounts not under FT)
+# 3. IATSW: transferred out (internal accounts)
+# 4. IATSA: transferred in (internal accounts)
+# 5. CALLED: called by issuer 
+# 6. TNDRL: buy back by issuer
 # 
 # Note that we do the above lookup for the list of unmatched positions, i.e.,
 # positions that have the above transactions.
@@ -16,6 +17,7 @@ from trade_converter.utility import logger, get_datemode, get_record_fields, \
 									get_current_path, convert_datetime_to_string, \
 									is_blank_line, is_empty_cell, get_input_directory
 from trade_converter.port_12307 import fix_duplicate_key_value
+from trade_converter.tc import write_csv
 from xlrd import open_workbook
 from xlrd.xldate import xldate_as_datetime
 from datetime import datetime
@@ -162,15 +164,7 @@ def read_match_line(ws, row, fields):
 
 def read_transaction_file(trade_file, isin_list, output):
 	"""
-	Note: Read the transaction file from FT, search for the following
-	transactions only, and for securities in isin_list only:
-
-	1. CSA: transferred in
-	2. CSW: transferred out
-	3. IATSW: transferred out
-	4. CALLED: called by issuer
-	5. TNDRL: buy back by issuer
-
+	Note: Read the transaction file from FT, for securities in isin_list only.
 	"""
 	logger.debug('read_transaction_file(): {0}'.format(trade_file))
 
@@ -211,7 +205,17 @@ def read_data_fields(ws, row):
 
 def read_line(ws, row, fields):
 	"""
-	Read the trade information from a line.
+	Read a line, store as trade information. Note, it only read lines whose
+	transaction type is one of the following:
+
+	1. CSA: transferred in (from accounts not under FT)
+	2. CSW: transferred out (to accounts not under FT)
+	3. IATSW: transferred out (internal accounts)
+	4. IATSA: transferred in (internal accounts)
+	5. CALLED: called by issuer 
+	6. TNDRL: buy back by issuer
+
+	If not, then it returns None.
 	"""
 	trade_info = {}
 	column = 0
@@ -248,7 +252,8 @@ def read_line(ws, row, fields):
 		column = column + 1
 
 		try:
-			if not trade_info['TRANTYP'] in ['IATSW', 'IATSA', 'CSA', 'CSW', 'CALLED', 'TNDRL']:
+			if not trade_info['TRANTYP'] in ['IATSW', 'IATSA', 'CSA', 'CSW', \
+				'CALLED', 'TNDRL']:
 				trade_info = None
 				break
 		except KeyError:
@@ -711,32 +716,55 @@ def verify_records(match_status, records, bad_isin_list):
 
 
 
+def generate_match_records(match_file, transaction_file):
+	"""
+	From the match status file and the transaction file, create the list of
+	records that fix the unmatched positions.
+	"""
+	match_status = read_match_status(match_file)
+	# print('{0} match status read'.format(len(match_status)))
+	# print('\n++++++++++++++++\n')
+	# for entry in match_status:
+	# 	print(entry)
 
-# if __name__ == '__main__':
-# 	parser = argparse.ArgumentParser(description='Read portfolio trades and create a Geneva trade upload file. Check the config file for path to trade files.')
-# 	parser.add_argument('match_file')
-# 	parser.add_argument('transaction_file')
-# 	args = parser.parse_args()
+	isin_list = [entry[2] for entry in match_status]
+	transaction_list = []
+	read_transaction_file(transaction_file, isin_list, transaction_list)
+	matched_transaction_list, bad_isin_list = filter_matched_transaction(transaction_list, match_status)
+	records = convert_to_geneva_records(matched_transaction_list)
+	fix_duplicate_key_value(records)
+	print('{0} records generated'.format(len(records)))
+	verify_records(match_status, records, bad_isin_list)
+	return records
 
-# 	if not os.path.exists(args.match_file):
-# 		print('{0} does not exist'.format(args.match_file))
-# 		sys.exit(1)
 
-# 	if not os.path.exists(args.transaction_file):
-# 		print('{0} does not exist'.format(args.transaction_file))
-# 		sys.exit(1)
 
-# 	match_status = read_match_status(args.match_file)
-# 	# print('{0} match status read'.format(len(match_status)))
-# 	# print('\n++++++++++++++++\n')
-# 	# for entry in match_status:
-# 	# 	print(entry)
 
-# 	isin_list = [entry[2] for entry in match_status]
-# 	transaction_list = []
-# 	read_transaction_file(args.transaction_file, isin_list, transaction_list)
-# 	matched_transaction_list, bad_isin_list = filter_matched_transaction(transaction_list, match_status)
-# 	records = convert_to_geneva_records(matched_transaction_list)
-# 	fix_duplicate_key_value(records)
-# 	print('{0} records'.format(len(records)))
-# 	verify_records(match_status, records, bad_isin_list)
+if __name__ == '__main__':
+	# parser = argparse.ArgumentParser(description='Read portfolio trades and create a Geneva trade upload file. Check the config file for path to trade files.')
+	# parser.add_argument('match_file')
+	# parser.add_argument('transaction_file')
+	# args = parser.parse_args()
+
+	# match_file = os.path.join(get_input_directory(), args.match_file)
+	# if not os.path.exists(match_file):
+	# 	print('{0} does not exist'.format(match_file))
+	# 	sys.exit(1)
+
+	# transaction_file = os.path.join(get_input_directory(), args.transaction_file)
+	# if not os.path.exists(transaction_file):
+	# 	print('{0} does not exist'.format(transaction_file))
+	# 	sys.exit(1)
+
+	# generate_match_records(match_file, transaction_file)
+
+	portfolios = ['12229', '12366', '12528', '12548', '12630', '12732', '12733']
+	records = []
+
+	for portfolio in portfolios:
+		match_file = os.path.join(get_input_directory(), '{0} match results 0118 morning.xlsx'.format(portfolio))
+		transaction_file = os.path.join(get_input_directory(), 'transactions {0} no initial pos.xls'.format(portfolio))
+		records = records + generate_match_records(match_file, transaction_file)
+
+	print('{0} records'.format(len(records)))
+	write_csv(os.path.join(get_input_directory(), 'csa_upload.csv'), records)

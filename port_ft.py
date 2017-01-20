@@ -216,6 +216,10 @@ def validate_trade_info(trade_info):
 		logger.error('validate_trade_info(): FX validation failed, diff={0}'.format(diff))
 		raise InvalidTradeInfo()
 
+	# This is only used when create_12528_trade_after_20160831() is called.
+	# if trade_info['TRDDATE'] < datetime(2016,8,31):
+	# 	return
+
 	if trade_info['TRANTYP'] in ['Purch', 'Sale']:
 		if not isinstance(trade_info['QTY'], float) or not isinstance(trade_info['TRADEPRC'], float):
 			logger.error('validate_trade_info(): quantity={0}, price={1}, is not of type float'.
@@ -500,3 +504,34 @@ def create_geneva_flat_file(output):
 		
 		for isin in isin_list:
 			file_writer.writerow([isin, 'Isin', '', ';'])
+
+
+
+
+def create_12528_trade_after_20160831():
+	"""
+	As of 20160930, the 12528 portfolio has been sold out. After that,
+	some trades come in. To setup portfolio 12528 for operations, we need
+	to load trades after 20160930.
+	"""
+	import os
+	from trade_converter.tc import write_csv
+
+	output = []
+	f = os.path.join(get_input_directory(), 'transactions 12528 no initial pos.xls')
+	read_transaction_file(f, output)
+
+	trades = []
+	for trade_info in output:
+		if trade_info['TRDDATE'] > datetime(2016,8,31):
+			trades.append(trade_info)
+
+	records = convert_to_geneva_records(trades)
+	fix_duplicate_key_value(records)
+
+	write_csv(os.path.join(get_input_directory(), '12528_trades_after20160831_upload.csv'), records)
+
+
+
+if __name__ == '__main__':
+	create_12528_trade_after_20160831()
