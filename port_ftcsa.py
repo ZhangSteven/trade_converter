@@ -59,25 +59,25 @@ class RecordVerificationFailed(Exception):
 
 
 
-def convert_ftcsa(files):
-	"""
-	Convert the trade files from FT to Geneva format for quick trade
-	import.
+# def convert_ftcsa(files):
+# 	"""
+# 	Convert the trade files from FT to Geneva format for quick trade
+# 	import.
 
-	files: a list of trade files.
-	"""
-	logger.debug('in convert_ft()')
+# 	files: a list of trade files.
+# 	"""
+# 	logger.debug('in convert_ft()')
 
-	output = []
-	for f in files:
-		read_transaction_file(f, output)
+# 	output = []
+# 	for f in files:
+# 		read_transaction_file(f, output)
 
-	create_geneva_flat_file(output)
+# 	create_geneva_flat_file(output)
 
-	records = convert_to_geneva_records(output)
-	fix_duplicate_key_value(records)
+# 	records = convert_to_geneva_records(output)
+# 	fix_duplicate_key_value(records)
 
-	return records
+# 	return records
 
 
 
@@ -337,34 +337,6 @@ def validate_trade_info(trade_info):
 		if (abs(diff2) > 0.01 and abs(diff3) > 0.01):
 			logger.error('validate_trade_info(): price validation failed')
 			raise InvalidTradeInfo()
-
-
-
-# def fix_duplicate_key_value(records):
-# 	"""
-# 	Detect whether there are duplicate keyvalues for different records,
-# 	if there are, modify the keyvalues to make all keys unique.
-# 	"""
-# 	keys = []
-# 	for record in records:
-# 		i = 1
-# 		temp_key = record['KeyValue']
-# 		while temp_key in keys:
-# 			temp_key = record['KeyValue'] + '_' + str(i)
-# 			i = i + 1
-
-# 		record['KeyValue'] = temp_key
-# 		keys.append(record['KeyValue'])
-
-# 	# check again
-# 	keys = []
-# 	for record in records:
-# 		if record['KeyValue'] in keys:
-# 			logger.error('fix_duplicate_key_value(): duplicate keys still exists, key={0}, investment={1}'.
-# 							format(record['KeyValue'], record['Investment']))
-# 			raise DuplicateKeys()
-
-# 		keys.append(record['KeyValue'])
 
 
 
@@ -741,6 +713,24 @@ def generate_match_records(match_file, transaction_file):
 
 
 if __name__ == '__main__':
+	"""
+	Read the match status file (Geneva export of review recon status), and
+	the transaction file, then extract the below transactions that can explain
+	the difference in the position break report. Note that the match status
+	does not contain 'Approved' status, only 'Near' or 'Unmatched'.
+
+	1. CSA: transferred in (from accounts not under FT)
+	2. CSW: transferred out (to accounts not under FT)
+	3. IATSW: transferred out (internal accounts)
+	4. IATSA: transferred in (internal accounts)
+	5. CALLED: called by issuer 
+	6. TNDRL: buy back by issuer
+
+	If a position break has a difference of say, 100K, but the above transactions
+	found in the transaction file does not explain the difference, then they
+	are not extracted at all.
+	"""
+	# Do it over the command line
 	# parser = argparse.ArgumentParser(description='Read portfolio trades and create a Geneva trade upload file. Check the config file for path to trade files.')
 	# parser.add_argument('match_file')
 	# parser.add_argument('transaction_file')
@@ -758,6 +748,10 @@ if __name__ == '__main__':
 
 	# generate_match_records(match_file, transaction_file)
 
+
+
+	# Instead of getting from the command line, now read a list of position 
+	# break reports/transaction files from some where.
 	portfolios = ['12229', '12366', '12528', '12548', '12630', '12732', '12733']
 	records = []
 
