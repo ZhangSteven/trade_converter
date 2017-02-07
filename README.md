@@ -38,6 +38,15 @@ Todo
 5. For ft format, add support for AFS portfolios, now only supports HTM portfolio, mainly in the get_geneva_investment_id() part.
 
 
+
++++++++++++
+ver 0.1501
++++++++++++
+1. Update the investmentLookup.xls and change the trade validation threshold increased from 0.0001 to 0.1
+
+
+
+
 +++++++++++
 ver 0.15
 +++++++++++

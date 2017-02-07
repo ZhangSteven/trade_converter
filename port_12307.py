@@ -128,7 +128,7 @@ def validate_trade_info(trade_info):
 		logger.error('validate_trade_info(): invalid trade instruction: {0}'.format(trade_info['B/S']))
 		raise InvalidTradeInfo
 
-	if abs(settled_amount - trade_info['Net Setl']) > 0.0001:
+	if abs(settled_amount - trade_info['Net Setl']) > 0.1:
 		logger.error('validate_trade_info(): net settlement amount does not match, calculated={0}, read={1}'.
 						format(settled_amount, trade_info['Net Setl']))
 		raise InvalidTradeInfo
