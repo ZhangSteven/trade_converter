@@ -40,6 +40,13 @@ Todo
 
 
 +++++++++++
+ver 0.1502
++++++++++++
+1. Update the investmentLookup.xls
+
+
+
++++++++++++
 ver 0.1501
 +++++++++++
 1. Update the investmentLookup.xls and change the trade validation threshold increased from 0.0001 to 0.1

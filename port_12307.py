@@ -206,7 +206,8 @@ def map_broker_code(broker_code):
 		'UBS':'UBSW-EQ',
 		'CEBSS':'EBSI-EQ',
 		'DAIW':'DAR5-EQ',
-		'GFS':'GF01-EQ'
+		'GFS':'GF01-EQ',
+		'CGIS':'CGHK-EQ'
 	}
 
 	try:
