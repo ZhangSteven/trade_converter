@@ -39,8 +39,8 @@ def convert12734(files):
 	records = convert_to_geneva_records(output_list)
 	fix_duplicate_key_value(records)
 
-	for error_entry in error_list:
-		print('trade in error: {0}'.format(error_entry['Trade Date']))
+	if len(error_list) > 0:
+		print('There are {0} rows in error, check log file'.format(len(error_list)))
 
 	return records
 
