@@ -9,12 +9,14 @@ from trade_converter.utility import logger, get_current_path, get_record_fields,
 									get_input_directory
 from trade_converter.port_12307 import convert12307
 from trade_converter.port_ft import convert_ft
+from trade_converter.port_12734 import convert12734
 
 
 
 def get_converter(file_format):
 	func_map = {
 				'clamc':convert12307,
+				'12734':convert12734,
 				'ft':convert_ft
 				}
 	return func_map[file_format]
