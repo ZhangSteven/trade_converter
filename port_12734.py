@@ -10,7 +10,7 @@ from trade_converter.port_12307 import convert_to_geneva_records, \
 									fix_duplicate_key_value
 from small_program.read_file import read_file
 from xlrd.xldate import xldate_as_datetime
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 
 
@@ -62,7 +62,8 @@ def validate_line(line_info):
 
 	2. Security code is ISIN
 	"""
-	if not get_date_from_serial(line_info['Form Serial No.']) == line_info['Trade Date']:
+	if line_info['Trade Date'] - get_date_from_serial(line_info['Form Serial No.']) > timedelta(days=3) \
+		or get_date_from_serial(line_info['Form Serial No.']) - line_info['Trade Date'] > timedelta(days=3):
 		logger.error('validate_line(): inconsistent date {0}'.
 						format(line_info['Trade Date']))
 		raise InvalidaLineInfo()
@@ -137,8 +138,13 @@ def map_to_isin(security_no):
 	Map the non-ISIN security code to ISIN.
 	"""
 	isin_map = {
+		'97147884':'HK0000163607',
 		'BNYHFB12001':'HK0000097490',
+		'BNYHFN12008':'HK0000109337',
+		'BNYHFN12017':'HK0000120748',
+		'BNYHFN13021':'HK0000171949',
 		'CMU: HSBCFN13002':'HK0000134780',
+		'EI5766551':'HK0000140217',
 		'EI7283738':'HK0000083706',
 		'EI8608990':'HK0000091832',
 		'EI9135894':'HK0000096856',
